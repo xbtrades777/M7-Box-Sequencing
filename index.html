@@ -115,7 +115,7 @@
     <script type="text/babel">
         const API_KEY = 'AIzaSyC-5W2K8tA4nbgoZcSWJUWwuANUeD2UA0Q';
         const SPREADSHEET_ID = '19ojHpq_oHNkx_MnPQU1QArIvJWzXEFVFaoaM3cG_YLU';
-        const RANGE = 'A:N'; // Remove specific sheet name
+        const RANGE = 'With Confirmation!A:N'; // Correct sheet name
 
         const ProbabilityDashboard = () => {
             const [data, setData] = React.useState([]);
@@ -171,23 +171,27 @@
                     const result = await response.json();
                     const rows = result.values;
                     
-                    // Parse data, skipping header row
-                    const processedData = rows.slice(1).map(row => ({
-                        date: row[0],
-                        day: row[1],
-                        fromState: row[2],
-                        toState: row[3],
-                        transition: row[4],
-                        adrColor: row[5],
-                        odrColor: row[6],
-                        rdrColor: row[7],
+                    // Parse data, skipping header row if it exists
+                    const headers = rows[0];
+                    const hasHeaders = headers && headers[0] === 'Date'; // Check if first row is headers
+                    const dataRows = hasHeaders ? rows.slice(1) : rows;
+                    
+                    const processedData = dataRows.map(row => ({
+                        date: row[0] || '',
+                        day: row[1] || '',
+                        fromState: row[2] || '',
+                        toState: row[3] || '',
+                        transition: row[4] || '',
+                        adrColor: row[5] || '',
+                        odrColor: row[6] || '',
+                        rdrColor: row[7] || '',
                         adrSize: parseFloat(row[8]) || 0,
                         odrSize: parseFloat(row[9]) || 0,
                         rdrSize: parseFloat(row[10]) || 0,
                         probL: parseFloat(row[11]) || 0,
                         probM: parseFloat(row[12]) || 0,
                         probN: parseFloat(row[13]) || 0,
-                    }));
+                    })).filter(row => row.date && row.fromState && row.toState); // Filter out empty rows
                     
                     setData(processedData);
                     setLoading(false);
