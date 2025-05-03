@@ -115,7 +115,7 @@
     <script type="text/babel">
         const API_KEY = 'AIzaSyC-5W2K8tA4nbgoZcSWJUWwuANUeD2UA0Q';
         const SPREADSHEET_ID = '19ojHpq_oHNkx_MnPQU1QArIvJWzXEFVFaoaM3cG_YLU';
-        const RANGE = 'Sheet1!A:N';
+        const RANGE = 'A:N'; // Remove specific sheet name
 
         const ProbabilityDashboard = () => {
             const [data, setData] = React.useState([]);
@@ -140,13 +140,17 @@
 
             const fetchData = async () => {
                 try {
-                    const response = await fetch(
-                        `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}?key=${API_KEY}`
-                    );
+                    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}?key=${API_KEY}`;
+                    console.log('Fetching from URL:', url);
+                    
+                    const response = await fetch(url);
                     
                     if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('Error response:', errorText);
+                        
                         if (response.status === 400) {
-                            throw new Error('Error 400: Bad request. Please check if the spreadsheet ID is correct.');
+                            throw new Error('Error 400: Bad request. Please check if the sheet name is correct. Try changing Sheet1 to your actual sheet name.');
                         } else if (response.status === 403) {
                             throw new Error('Error 403: Access denied. Please make sure the spreadsheet is shared publicly (anyone with link can view).');
                         } else if (response.status === 404) {
