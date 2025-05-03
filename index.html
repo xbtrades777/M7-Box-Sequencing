@@ -145,7 +145,14 @@
                     );
                     
                     if (!response.ok) {
-                        throw new Error('Failed to fetch data');
+                        if (response.status === 400) {
+                            throw new Error('Error 400: Bad request. Please check if the spreadsheet ID is correct.');
+                        } else if (response.status === 403) {
+                            throw new Error('Error 403: Access denied. Please make sure the spreadsheet is shared publicly (anyone with link can view).');
+                        } else if (response.status === 404) {
+                            throw new Error('Error 404: Spreadsheet not found. Please check the spreadsheet ID.');
+                        }
+                        throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
                     }
                     
                     const result = await response.json();
@@ -172,6 +179,7 @@
                     setData(processedData);
                     setLoading(false);
                 } catch (err) {
+                    console.error('Error fetching data:', err);
                     setError(err.message);
                     setLoading(false);
                 }
@@ -259,7 +267,30 @@
             }
 
             if (error) {
-                return <div className="error">Error: {error}</div>;
+                return (
+                    <div className="dashboard">
+                        <h1>Trading Probability Dashboard</h1>
+                        <div className="error">
+                            <h3>Error Loading Data</h3>
+                            <p>{error}</p>
+                            <h4>Troubleshooting Steps:</h4>
+                            <ol>
+                                <li>Make sure your Google Sheet is shared publicly:
+                                    <ul>
+                                        <li>Open your Google Sheet</li>
+                                        <li>Click "Share" button</li>
+                                        <li>Click "Change to anyone with the link"</li>
+                                        <li>Set to "Viewer" access</li>
+                                        <li>Click "Done"</li>
+                                    </ul>
+                                </li>
+                                <li>Verify the spreadsheet ID is correct</li>
+                                <li>Check if the Google Sheets API is enabled in your Google Cloud project</li>
+                                <li>Refresh this page after making changes</li>
+                            </ol>
+                        </div>
+                    </div>
+                );
             }
 
             const probabilities = calculateProbabilities();
