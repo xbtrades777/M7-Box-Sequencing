@@ -169,18 +169,28 @@
                     const hasHeaders = headers && headers[0] === 'Date';
                     const dataRows = hasHeaders ? rows.slice(1) : rows;
                     
-                    const processedData = dataRows.map(row => ({
-                        date: row[0] || '',
-                        day: row[1] || '',
-                        fromState: (row[2] || '').trim(),
-                        toState: (row[3] || '').trim(),
-                        transition: (row[4] || '').trim(),
-                    })).filter(row => row.date && row.fromState && row.toState);
+                    const processedData = dataRows.map(row => {
+                        // Convert FROM_STATE and TO_STATE to strings and pad to 3 digits
+                        const fromState = row[2] ? String(row[2]).padStart(3, '0') : '';
+                        const toState = row[3] ? String(row[3]).padStart(3, '0') : '';
+                        return {
+                            date: row[0] || '',
+                            day: row[1] || '',
+                            fromState: fromState,
+                            toState: toState,
+                            transition: row[4] || '',
+                        };
+                    }).filter(row => row.date && row.fromState && row.toState);
+                    
+                    // Debugging: Log all rows with FROM_STATE = '000'
+                    const zeroData = processedData.filter(row => row.fromState === '000');
+                    console.log('Rows with FROM_STATE = 000:', zeroData.length, zeroData);
                     
                     const uniqueFromStates = [...new Set(processedData.map(row => row.fromState))];
                     const uniqueToStates = [...new Set(processedData.map(row => row.toState))];
                     console.log('Unique FROM_STATE values:', uniqueFromStates);
                     console.log('Unique TO_STATE values:', uniqueToStates);
+                    console.log('Total processed data rows:', processedData.length);
                     
                     setData(processedData);
                     setLoading(false);
@@ -197,7 +207,7 @@
                 if (fromState !== 'all') {
                     console.log(`Looking for fromState: "${fromState}"`);
                     filteredData = filteredData.filter(row => row.fromState === fromState);
-                    console.log(`Filtered by fromState ${fromState}:`, filteredData.length);
+                    console.log(`Filtered by fromState ${fromState}:`, filteredData.length, filteredData);
                 }
                 if (toState !== 'all') {
                     filteredData = filteredData.filter(row => row.toState === toState);
@@ -233,7 +243,7 @@
 
                 if (fromState !== 'all') {
                     const matchingData = data.filter(row => row.fromState === fromState);
-                    console.log(`Filtered by FROM_STATE=${fromState}: ${matchingData.length} rows`);
+                    console.log(`Filtered by FROM_STATE=${fromState}: ${matchingData.length} rows`, matchingData);
 
                     const rdrOutcomes = { '0': 0, '1': 0 };
                     matchingData.forEach(row => {
@@ -266,7 +276,7 @@
                     const matchingData = data.filter(row => 
                         row.fromState && row.fromState.startsWith(pattern)
                     );
-                    console.log(`Filtered by pattern=${pattern}: ${matchingData.length} rows`);
+                    console.log(`Filtered by pattern=${pattern}: ${matchingData.length} rows`, matchingData);
 
                     const rdrOutcomes = { '0': 0, '1': 0 };
                     matchingData.forEach(row => {
@@ -507,7 +517,6 @@
             );
         }
 
-        // Updated rendering using createRoot
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<ProbabilityDashboard />);
     </script>
