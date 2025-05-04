@@ -230,53 +230,81 @@
                 return probabilities;
             };
 
-            const predictRDR = () => {
-                // If there's a specific FROM_STATE selected, use that
+            const predictNextDigit = () => {
+                // Start with all data filtered by FROM_STATE
+                let filteredData = data;
+                
                 if (fromState !== 'all') {
-                    const matchingData = data.filter(row => row.fromState === fromState);
-                    
-                    // Count the RDR digit (3rd position) in the TO_STATE
-                    const rdrOutcomes = { '0': 0, '1': 0 };
-                    matchingData.forEach(row => {
-                        if (row.toState && row.toState.length >= 3) {
-                            const rdrDigit = row.toState[2];  // 3rd digit of TO_STATE
-                            if (rdrDigit === '0' || rdrDigit === '1') {
-                                rdrOutcomes[rdrDigit]++;
+                    filteredData = filteredData.filter(row => row.fromState === fromState);
+                }
+                
+                // If no ADR selected, predict ADR probabilities
+                if (!adrState) {
+                    const adrOutcomes = { '0': 0, '1': 0 };
+                    filteredData.forEach(row => {
+                        if (row.toState && row.toState.length >= 1) {
+                            const adrDigit = row.toState[0];
+                            if (adrDigit === '0' || adrDigit === '1') {
+                                adrOutcomes[adrDigit]++;
                             }
                         }
                     });
-
-                    const total = rdrOutcomes['0'] + rdrOutcomes['1'];
                     
+                    const total = adrOutcomes['0'] + adrOutcomes['1'];
                     return {
-                        probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
-                        probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
-                        sampleSize: total,
-                        fromStateUsed: fromState
+                        type: 'ADR',
+                        probability0: total > 0 ? adrOutcomes['0'] / total : 0,
+                        probability1: total > 0 ? adrOutcomes['1'] / total : 0,
+                        sampleSize: total
                     };
                 }
                 
-                // If no specific FROM_STATE selected but ADR/ODR are selected
-                if (adrState && odrState) {
-                    const pattern = `${adrState}${odrState}`;
-                    const matchingData = data.filter(row => 
-                        row.fromState && row.fromState.startsWith(pattern)
+                // If ADR selected but no ODR, predict ODR probabilities
+                if (adrState && !odrState) {
+                    const odrOutcomes = { '0': 0, '1': 0 };
+                    const matchingData = filteredData.filter(row => 
+                        row.toState && row.toState[0] === adrState
                     );
                     
-                    // Count the RDR digit (3rd position) in the TO_STATE
-                    const rdrOutcomes = { '0': 0, '1': 0 };
                     matchingData.forEach(row => {
-                        if (row.toState && row.toState.length >= 3) {
-                            const rdrDigit = row.toState[2];  // 3rd digit of TO_STATE
+                        if (row.toState.length >= 2) {
+                            const odrDigit = row.toState[1];
+                            if (odrDigit === '0' || odrDigit === '1') {
+                                odrOutcomes[odrDigit]++;
+                            }
+                        }
+                    });
+                    
+                    const total = odrOutcomes['0'] + odrOutcomes['1'];
+                    return {
+                        type: 'ODR',
+                        probability0: total > 0 ? odrOutcomes['0'] / total : 0,
+                        probability1: total > 0 ? odrOutcomes['1'] / total : 0,
+                        sampleSize: total,
+                        pattern: adrState
+                    };
+                }
+                
+                // If both ADR and ODR selected, predict RDR probabilities
+                if (adrState && odrState) {
+                    const rdrOutcomes = { '0': 0, '1': 0 };
+                    const pattern = `${adrState}${odrState}`;
+                    const matchingData = filteredData.filter(row => 
+                        row.toState && row.toState.startsWith(pattern)
+                    );
+                    
+                    matchingData.forEach(row => {
+                        if (row.toState.length >= 3) {
+                            const rdrDigit = row.toState[2];
                             if (rdrDigit === '0' || rdrDigit === '1') {
                                 rdrOutcomes[rdrDigit]++;
                             }
                         }
                     });
-
-                    const total = rdrOutcomes['0'] + rdrOutcomes['1'];
                     
+                    const total = rdrOutcomes['0'] + rdrOutcomes['1'];
                     return {
+                        type: 'RDR',
                         probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
                         probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
                         sampleSize: total,
@@ -299,7 +327,7 @@
             }
 
             const probabilities = calculateProbabilities();
-            const rdrPrediction = predictRDR();
+            const prediction = predictNextDigit();
 
             return (
                 <div className="dashboard">
@@ -337,53 +365,61 @@
                         </div>
                         
                         <div className="prediction-section">
-                            <h3>RDR Prediction</h3>
-                            <p>Given ADR and ODR states, predict the most likely RDR outcome</p>
+                            <h3>Progressive Prediction</h3>
+                            <p>Select digits progressively to predict the TO_STATE</p>
                             <div className="prediction-inputs">
                                 <div className="filter-group">
                                     <label>ADR State:</label>
-                                    <select value={adrState} onChange={e => setAdrState(e.target.value)}>
+                                    <select value={adrState} onChange={e => {
+                                        setAdrState(e.target.value);
+                                        setOdrState(''); // Reset ODR when ADR changes
+                                    }}>
                                         <option value="">Select</option>
                                         <option value="0">0</option>
                                         <option value="1">1</option>
                                     </select>
                                 </div>
-                                <div className="filter-group">
-                                    <label>ODR State:</label>
-                                    <select value={odrState} onChange={e => setOdrState(e.target.value)}>
-                                        <option value="">Select</option>
-                                        <option value="0">0</option>
-                                        <option value="1">1</option>
-                                    </select>
-                                </div>
+                                {adrState && (
+                                    <div className="filter-group">
+                                        <label>ODR State:</label>
+                                        <select value={odrState} onChange={e => setOdrState(e.target.value)}>
+                                            <option value="">Select</option>
+                                            <option value="0">0</option>
+                                            <option value="1">1</option>
+                                        </select>
+                                    </div>
+                                )}
                             </div>
                             
-                            {rdrPrediction && (
+                            {prediction && (
                                 <div className="prediction-result">
                                     <h3>Prediction Results</h3>
                                     <p>
-                                        {rdrPrediction.fromStateUsed 
-                                            ? `For FROM_STATE = ${rdrPrediction.fromStateUsed}, the RDR digit in TO_STATE is:`
-                                            : `When FROM_STATE starts with ${rdrPrediction.pattern}, the RDR digit in TO_STATE is:`
-                                        }
+                                        {prediction.type === 'ADR' && 
+                                            `For FROM_STATE = ${fromState !== 'all' ? fromState : 'any'}, the ADR digit in TO_STATE is:`}
+                                        {prediction.type === 'ODR' && 
+                                            `For FROM_STATE = ${fromState !== 'all' ? fromState : 'any'} and TO_STATE starting with ${prediction.pattern}, the ODR digit is:`}
+                                        {prediction.type === 'RDR' && 
+                                            `For FROM_STATE = ${fromState !== 'all' ? fromState : 'any'} and TO_STATE starting with ${prediction.pattern}, the RDR digit is:`}
                                     </p>
                                     <div className="probability-grid">
                                         <div className="probability-item">
-                                            <div className="probability-label">RDR = 0</div>
+                                            <div className="probability-label">{prediction.type} = 0</div>
                                             <div className="probability-value">
-                                                {(rdrPrediction.probability0 * 100).toFixed(1)}%
+                                                {(prediction.probability0 * 100).toFixed(1)}%
                                             </div>
                                         </div>
                                         <div className="probability-item">
-                                            <div className="probability-label">RDR = 1</div>
+                                            <div className="probability-label">{prediction.type} = 1</div>
                                             <div className="probability-value">
-                                                {(rdrPrediction.probability1 * 100).toFixed(1)}%
+                                                {(prediction.probability1 * 100).toFixed(1)}%
                                             </div>
                                         </div>
                                     </div>
-                                    <p className="sample-size">Based on {rdrPrediction.sampleSize} samples</p>
+                                    <p className="sample-size">Based on {prediction.sampleSize} samples</p>
                                 </div>
                             )}
+                        </div>
                         </div>
                     </div>
 
