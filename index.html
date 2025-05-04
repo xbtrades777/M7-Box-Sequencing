@@ -4,15 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trading Probability Dashboard</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
             background-color: #f5f5f5;
-            line-height: 1.6;
         }
         .dashboard {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
         .card {
@@ -22,21 +24,70 @@
             margin-bottom: 20px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        h1, h2, h3 {
-            color: #333;
+        .filters {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
         }
-        h2 {
-            border-bottom: 2px solid #0066cc;
-            padding-bottom: 10px;
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .probability-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .probability-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+        }
+        .probability-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #0066cc;
+        }
+        .probability-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .prediction-section {
+            margin-top: 30px;
+        }
+        .prediction-inputs {
+            display: flex;
+            gap: 20px;
             margin-bottom: 20px;
         }
-        .state-label {
-            background-color: #f0f8ff;
-            padding: 8px 15px;
-            margin: 15px 0;
-            border-left: 4px solid #0066cc;
-            font-weight: bold;
-            display: inline-block;
+        .prediction-result {
+            background: #e8f4f8;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #b8d4e3;
+        }
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: #666;
+        }
+        .error {
+            color: #d32f2f;
+            padding: 20px;
+            background: #ffebee;
+            border-radius: 4px;
+            margin: 20px 0;
         }
         table {
             width: 100%;
@@ -51,200 +102,393 @@
         th {
             background-color: #f2f2f2;
         }
-        .probability-value {
-            font-size: 18px;
-            font-weight: bold;
-            color: #0066cc;
-        }
         .sample-size {
             font-size: 12px;
             color: #666;
+            margin-top: 5px;
         }
-        .instructions {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            padding: 15px;
+        .filter-group select {
+            width: 150px;
+        }
+        h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .card h2 {
+            border-bottom: 2px solid #0066cc;
+            padding-bottom: 10px;
             margin-bottom: 20px;
         }
-        .filter-section {
-            margin: 20px 0;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 6px;
+        .state-label {
+            background-color: #f0f8ff;
+            padding: 8px 15px;
+            margin: 15px 0;
+            border-left: 4px solid #0066cc;
+            font-weight: bold;
+            display: block;
+            width: fit-content;
         }
     </style>
 </head>
 <body>
-    <div class="dashboard">
-        <h1>Trading Probability Dashboard</h1>
-        
-        <div class="instructions">
-            <h3>Instructions:</h3>
-            <p>This dashboard analyzes trading state transitions. Below you'll find the probabilities for different state transitions based on historical data.</p>
-            <p>To use this dashboard with your data:</p>
-            <ol>
-                <li>Make sure your Google Sheet is publicly accessible</li>
-                <li>The data should have columns for Date, Day, FROM_STATE, TO_STATE, and transition information</li>
-                <li>Use the calculations below as a template for your analysis</li>
-            </ol>
-        </div>
+    <div id="root"></div>
 
-        <div class="card">
-            <h2>PREVIOUS DAY (FROM_STATE)</h2>
-            <div class="state-label">FROM STATE</div>
-            <div class="filter-section">
-                <p>Select a FROM_STATE to analyze:</p>
-                <ul>
-                    <li>000 - All bits are 0</li>
-                    <li>001 - ADR=0, ODR=0, RDR=1</li>
-                    <li>010 - ADR=0, ODR=1, RDR=0</li>
-                    <li>011 - ADR=0, ODR=1, RDR=1</li>
-                    <li>100 - ADR=1, ODR=0, RDR=0</li>
-                    <li>101 - ADR=1, ODR=0, RDR=1</li>
-                    <li>110 - ADR=1, ODR=1, RDR=0</li>
-                    <li>111 - All bits are 1</li>
-                </ul>
-            </div>
-        </div>
+    <script type="text/babel">
+        const API_KEY = 'AIzaSyC-5W2K8tA4nbgoZcSWJUWwuANUeD2UA0Q';
+        const SPREADSHEET_ID = '19ojHpq_oHNkx_MnPQU1QArIvJWzXEFVFaoaM3cG_YLU';
+        const RANGE = 'With Confirmation!A:N';
 
-        <div class="card">
-            <h2>CURRENT DAY (TO_STATE)</h2>
-            <div class="state-label">TO STATE</div>
-            <div class="filter-section">
-                <p>The TO_STATE represents the state that occurs after a given FROM_STATE.</p>
-                <p>Each state has three digits representing:</p>
-                <ul>
-                    <li>First digit (ADR): Asian/After-hours session</li>
-                    <li>Second digit (ODR): Overnight/London session</li>
-                    <li>Third digit (RDR): Regular/New York session</li>
-                </ul>
-            </div>
-        </div>
+        function ProbabilityDashboard() {
+            const [data, setData] = React.useState([]);
+            const [loading, setLoading] = React.useState(true);
+            const [error, setError] = React.useState(null);
+            const [fromState, setFromState] = React.useState('all');
+            const [toState, setToState] = React.useState('all');
+            const [adrState, setAdrState] = React.useState('');
+            const [odrState, setOdrState] = React.useState('');
 
-        <div class="card">
-            <h2>State Transition Probabilities</h2>
-            <p>Based on historical data, here are common state transitions:</p>
-            
-            <h3>Example: FROM_STATE = 000</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Transition</th>
-                        <th>Probability</th>
-                        <th>Count</th>
-                        <th>Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>000 → 101</td>
-                        <td class="probability-value">33.3%</td>
-                        <td>6</td>
-                        <td>18</td>
-                    </tr>
-                    <tr>
-                        <td>000 → 011</td>
-                        <td class="probability-value">22.2%</td>
-                        <td>4</td>
-                        <td>18</td>
-                    </tr>
-                    <tr>
-                        <td>000 → 100</td>
-                        <td class="probability-value">16.7%</td>
-                        <td>3</td>
-                        <td>18</td>
-                    </tr>
-                    <tr>
-                        <td>000 → 000</td>
-                        <td class="probability-value">11.1%</td>
-                        <td>2</td>
-                        <td>18</td>
-                    </tr>
-                    <tr>
-                        <td>000 → 110</td>
-                        <td class="probability-value">5.6%</td>
-                        <td>1</td>
-                        <td>18</td>
-                    </tr>
-                    <tr>
-                        <td>000 → 001</td>
-                        <td class="probability-value">5.6%</td>
-                        <td>1</td>
-                        <td>18</td>
-                    </tr>
-                    <tr>
-                        <td>000 → 111</td>
-                        <td class="probability-value">5.6%</td>
-                        <td>1</td>
-                        <td>18</td>
-                    </tr>
-                </tbody>
-            </table>
-            <p class="sample-size">Based on 18 samples</p>
-        </div>
+            const allStates = ['000', '001', '010', '011', '100', '101', '110', '111'];
 
-        <div class="card">
-            <h2>Progressive Prediction</h2>
-            <p>To predict the TO_STATE progressively:</p>
-            
-            <h3>Step 1: Predict ADR (First Digit)</h3>
-            <p>Given FROM_STATE = 000, what is the probability of ADR being 0 or 1?</p>
-            <table>
-                <tr>
-                    <td>ADR = 0</td>
-                    <td class="probability-value">38.9%</td>
-                    <td>(7 out of 18)</td>
-                </tr>
-                <tr>
-                    <td>ADR = 1</td>
-                    <td class="probability-value">61.1%</td>
-                    <td>(11 out of 18)</td>
-                </tr>
-            </table>
-            
-            <h3>Step 2: Predict ODR (Second Digit)</h3>
-            <p>If ADR = 0, what is the probability of ODR being 0 or 1?</p>
-            <table>
-                <tr>
-                    <td>ODR = 0</td>
-                    <td class="probability-value">42.9%</td>
-                    <td>(3 out of 7)</td>
-                </tr>
-                <tr>
-                    <td>ODR = 1</td>
-                    <td class="probability-value">57.1%</td>
-                    <td>(4 out of 7)</td>
-                </tr>
-            </table>
-            
-            <h3>Step 3: Predict RDR (Third Digit)</h3>
-            <p>If ADR = 0 and ODR = 0, what is the probability of RDR being 0 or 1?</p>
-            <table>
-                <tr>
-                    <td>RDR = 0</td>
-                    <td class="probability-value">66.7%</td>
-                    <td>(2 out of 3)</td>
-                </tr>
-                <tr>
-                    <td>RDR = 1</td>
-                    <td class="probability-value">33.3%</td>
-                    <td>(1 out of 3)</td>
-                </tr>
-            </table>
-        </div>
+            React.useEffect(() => {
+                fetchData();
+            }, []);
 
-        <div class="card">
-            <h2>How to Use This Data</h2>
-            <ol>
-                <li>Identify your current FROM_STATE</li>
-                <li>Look up the transition probabilities for that state</li>
-                <li>Use the progressive prediction to estimate each digit of the TO_STATE</li>
-                <li>The higher probability outcomes are more likely to occur</li>
-            </ol>
-            
-            <p><strong>Note:</strong> These probabilities are based on historical data and do not guarantee future results.</p>
-        </div>
-    </div>
+            const fetchData = async () => {
+                try {
+                    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}?key=${API_KEY}`;
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch data: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    const rows = result.values;
+                    
+                    const headers = rows[0];
+                    const hasHeaders = headers && headers[0] === 'Date';
+                    const dataRows = hasHeaders ? rows.slice(1) : rows;
+                    
+                    const processedData = dataRows.map(row => ({
+                        date: row[0] || '',
+                        day: row[1] || '',
+                        fromState: (row[2] || '').trim(),        // Column C - trim whitespace
+                        toState: (row[3] || '').trim(),          // Column D - trim whitespace  
+                        transition: (row[4] || '').trim(),       // Column E - trim whitespace
+                    })).filter(row => row.date && row.fromState && row.toState);
+                    
+                    // Debug log to see what values we're getting
+                    console.log('Sample of processed data:', processedData.slice(0, 10));
+                    
+                    setData(processedData);
+                    setLoading(false);
+                } catch (err) {
+                    console.error('Error fetching data:', err);
+                    setError(err.message);
+                    setLoading(false);
+                }
+            };
+
+            const calculateProbabilities = () => {
+                let filteredData = data;
+
+                // First, let's check all FROM_STATE values in the data
+                console.log('All FROM_STATE values:', data.map(row => row.fromState));
+                
+                if (fromState !== 'all') {
+                    console.log(`Looking for fromState: "${fromState}"`);
+                    filteredData = filteredData.filter(row => row.fromState === fromState);
+                    console.log(`Filtered by fromState ${fromState}:`, filteredData.length);
+                    console.log('Filtered rows:', filteredData);
+                }
+                if (toState !== 'all') {
+                    filteredData = filteredData.filter(row => row.toState === toState);
+                    console.log(`Filtered by toState ${toState}:`, filteredData.length);
+                }
+
+                console.log('Total filtered data:', filteredData.length);
+
+                const transitionCounts = {};
+                const fromStateCounts = {};
+
+                filteredData.forEach(row => {
+                    const key = `${row.fromState} → ${row.toState}`;
+                    transitionCounts[key] = (transitionCounts[key] || 0) + 1;
+                    fromStateCounts[row.fromState] = (fromStateCounts[row.fromState] || 0) + 1;
+                });
+
+                const probabilities = {};
+                Object.keys(transitionCounts).forEach(key => {
+                    const [fromState] = key.split(' → ');
+                    probabilities[key] = {
+                        count: transitionCounts[key],
+                        total: fromStateCounts[fromState],
+                        probability: transitionCounts[key] / fromStateCounts[fromState]
+                    };
+                });
+
+                return probabilities;
+            };
+
+            const predictRDR = () => {
+                // If there's a specific FROM_STATE selected, use that
+                if (fromState !== 'all') {
+                    const matchingData = data.filter(row => row.fromState === fromState);
+                    
+                    // Count the RDR digit (3rd position) in the TO_STATE
+                    const rdrOutcomes = { '0': 0, '1': 0 };
+                    matchingData.forEach(row => {
+                        if (row.toState && row.toState.length >= 3) {
+                            const rdrDigit = row.toState[2];  // 3rd digit of TO_STATE
+                            if (rdrDigit === '0' || rdrDigit === '1') {
+                                rdrOutcomes[rdrDigit]++;
+                            }
+                        }
+                    });
+
+                    const total = rdrOutcomes['0'] + rdrOutcomes['1'];
+                    
+                    return {
+                        probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
+                        probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
+                        sampleSize: total,
+                        fromStateUsed: fromState
+                    };
+                }
+                
+                // If no specific FROM_STATE selected but ADR/ODR are selected
+                if (adrState && odrState) {
+                    const pattern = `${adrState}${odrState}`;
+                    const matchingData = data.filter(row => 
+                        row.fromState && row.fromState.startsWith(pattern)
+                    );
+                    
+                    // Count the RDR digit (3rd position) in the TO_STATE
+                    const rdrOutcomes = { '0': 0, '1': 0 };
+                    matchingData.forEach(row => {
+                        if (row.toState && row.toState.length >= 3) {
+                            const rdrDigit = row.toState[2];  // 3rd digit of TO_STATE
+                            if (rdrDigit === '0' || rdrDigit === '1') {
+                                rdrOutcomes[rdrDigit]++;
+                            }
+                        }
+                    });
+
+                    const total = rdrOutcomes['0'] + rdrOutcomes['1'];
+                    
+                    return {
+                        probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
+                        probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
+                        sampleSize: total,
+                        pattern: pattern
+                    };
+                }
+                
+                return null;
+            };
+
+            if (loading) {
+                return <div className="loading">Loading data...</div>;
+            }
+
+            if (error) {
+                return <div className="dashboard">
+                    <h1>Trading Probability Dashboard</h1>
+                    <div className="error">Error: {error}</div>
+                </div>;
+            }
+
+            const probabilities = calculateProbabilities();
+            const rdrPrediction = predictRDR();
+
+            return (
+                <div className="dashboard">
+                    <h1>Trading Probability Dashboard</h1>
+                    
+                    <div className="card">
+                        <h2>PREVIOUS DAY</h2>
+                        <div className="state-label">FROM STATE</div>
+                        <div className="filters">
+                            <div className="filter-group">
+                                <label>From State:</label>
+                                <select value={fromState} onChange={e => setFromState(e.target.value)}>
+                                    <option value="all">All</option>
+                                    {allStates.map(state => (
+                                        <option key={state} value={state}>{state}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="card">
+                        <h2>CURRENT DAY</h2>
+                        <div className="state-label">TO STATE</div>
+                        <div className="filters">
+                            <div className="filter-group">
+                                <label>To State:</label>
+                                <select value={toState} onChange={e => setToState(e.target.value)}>
+                                    <option value="all">All</option>
+                                    {allStates.map(state => (
+                                        <option key={state} value={state}>{state}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div className="prediction-section">
+                            <h3>RDR Prediction</h3>
+                            <p>Given ADR and ODR states, predict the most likely RDR outcome</p>
+                            <div className="prediction-inputs">
+                                <div className="filter-group">
+                                    <label>ADR State:</label>
+                                    <select value={adrState} onChange={e => setAdrState(e.target.value)}>
+                                        <option value="">Select</option>
+                                        <option value="0">0</option>
+                                        <option value="1">1</option>
+                                    </select>
+                                </div>
+                                <div className="filter-group">
+                                    <label>ODR State:</label>
+                                    <select value={odrState} onChange={e => setOdrState(e.target.value)}>
+                                        <option value="">Select</option>
+                                        <option value="0">0</option>
+                                        <option value="1">1</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            {rdrPrediction && (
+                                <div className="prediction-result">
+                                    <h3>Prediction Results</h3>
+                                    <p>
+                                        {rdrPrediction.fromStateUsed 
+                                            ? `For FROM_STATE = ${rdrPrediction.fromStateUsed}, the RDR digit in TO_STATE is:`
+                                            : `When FROM_STATE starts with ${rdrPrediction.pattern}, the RDR digit in TO_STATE is:`
+                                        }
+                                    </p>
+                                    <div className="probability-grid">
+                                        <div className="probability-item">
+                                            <div className="probability-label">RDR = 0</div>
+                                            <div className="probability-value">
+                                                {(rdrPrediction.probability0 * 100).toFixed(1)}%
+                                            </div>
+                                        </div>
+                                        <div className="probability-item">
+                                            <div className="probability-label">RDR = 1</div>
+                                            <div className="probability-value">
+                                                {(rdrPrediction.probability1 * 100).toFixed(1)}%
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p className="sample-size">Based on {rdrPrediction.sampleSize} samples</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="card">
+                        <h2>State Transition Probabilities</h2>
+                        <div className="probability-grid">
+                            {Object.entries(probabilities)
+                                .sort((a, b) => b[1].probability - a[1].probability)
+                                .slice(0, 12)
+                                .map(([transition, data]) => (
+                                    <div key={transition} className="probability-item">
+                                        <div className="probability-label">{transition}</div>
+                                        <div className="probability-value">
+                                            {(data.probability * 100).toFixed(1)}%
+                                        </div>
+                                        <div className="sample-size">
+                                            Sample size: {data.count}/{data.total}
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
+                    </div>
+
+                    <div className="card">
+                        <h2>All Transition Probabilities</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Transition</th>
+                                    <th>Probability</th>
+                                    <th>Count</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {Object.entries(probabilities)
+                                    .sort((a, b) => b[1].probability - a[1].probability)
+                                    .map(([transition, data]) => (
+                                        <tr key={transition}>
+                                            <td>{transition}</td>
+                                            <td>{(data.probability * 100).toFixed(1)}%</td>
+                                            <td>{data.count}</td>
+                                            <td>{data.total}</td>
+                                        </tr>
+                                    ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="card">
+                        <h2>Debug: All FROM_STATE = 000 entries</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>FROM_STATE</th>
+                                    <th>TO_STATE</th>
+                                    <th>Transition</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data
+                                    .filter(row => row.fromState === '000')
+                                    .map((row, index) => (
+                                        <tr key={index}>
+                                            <td>{row.date}</td>
+                                            <td>{row.fromState}</td>
+                                            <td>{row.toState}</td>
+                                            <td>{row.transition}</td>
+                                        </tr>
+                                    ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="card">
+                        <h2>Debug: All entries containing "000" in FROM_STATE</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>FROM_STATE</th>
+                                    <th>TO_STATE</th>
+                                    <th>Transition</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data
+                                    .filter(row => row.fromState && row.fromState.includes('000'))
+                                    .map((row, index) => (
+                                        <tr key={index}>
+                                            <td>{row.date}</td>
+                                            <td>"{row.fromState}"</td>
+                                            <td>{row.toState}</td>
+                                            <td>{row.transition}</td>
+                                        </tr>
+                                    ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<ProbabilityDashboard />, document.getElementById('root'));
+    </script>
 </body>
 </html>
