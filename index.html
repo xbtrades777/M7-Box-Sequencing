@@ -1,4 +1,46 @@
-<!DOCTYPE html>
+const calculateProbabilities = () => {
+                let filteredData = data;
+
+                // Apply Previous Day filters
+                if (filters.fromState !== 'all') {
+                    filteredData = filteredData.filter(row => row.fromState === filters.fromState);
+                }
+                
+                // Note: Previous day filters would need to look at the previous row's data
+                // For now, we'll focus on the from/to state transitions
+
+                // Apply Current Day filters
+                if (filters.toState !== 'all') {
+                    filteredData = filteredData.filter(row => row.toState === filters.toState);
+                }
+                if (filters.currAdrColor !== 'all') {
+                    filteredData = filteredData.filter(row => row.adrColor === filters.currAdrColor);
+                }
+                if (filters.currOdrColor !== 'all') {
+                    filteredData = filteredData.filter(row => row.odrColor === filters.currOdrColor);
+                }
+                if (filters.currRdrColor !== 'all') {
+                    filteredData = filteredData.filter(row => row.rdrColor === filters.currRdrColor);
+                }
+                
+                // Apply Current Day size range filters
+                const applySizeFilter = (data, sizeValue, session) => {
+                    if (sizeValue === 'all') return data;
+                    
+                    const [min, max] = sizeValue.split(',').map(parseFloat);
+                    return data.filter(row => {
+                        const size = row[`${session}Size`];
+                        return size >= min && size < max;
+                    });
+                };
+                
+                filteredData = applySizeFilter(filteredData, filters.currAdrSizeRange, 'adr');
+                filteredData = applySizeFilter(filteredData, filters.currOdrSizeRange, 'odr');
+                filteredData = applySizeFilter(filteredData, filters.currRdrSizeRange, 'rdr');
+
+                // Calculate transition probabilities
+                const transitionCounts = {};
+                const fromStateCounts<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -59,6 +101,15 @@
         }
         .filter-group select {
             width: 150px;
+        }
+        h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .card h2 {
+            border-bottom: 2px solid #0066cc;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
         }
         .prediction-section {
             margin-top: 30px;
@@ -125,12 +176,23 @@
             const [loading, setLoading] = React.useState(true);
             const [error, setError] = React.useState(null);
             const [filters, setFilters] = React.useState({
-                adrColor: 'all',
-                odrColor: 'all',
-                rdrColor: 'all',
-                adrSizeRange: 'all',
-                odrSizeRange: 'all',
-                rdrSizeRange: 'all'
+                // Previous Day filters
+                fromState: 'all',
+                prevAdrColor: 'all',
+                prevOdrColor: 'all',
+                prevRdrColor: 'all',
+                prevAdrSizeRange: 'all',
+                prevOdrSizeRange: 'all',
+                prevRdrSizeRange: 'all',
+                
+                // Current Day filters
+                toState: 'all',
+                currAdrColor: 'all',
+                currOdrColor: 'all',
+                currRdrColor: 'all',
+                currAdrSizeRange: 'all',
+                currOdrSizeRange: 'all',
+                currRdrSizeRange: 'all'
             });
             // Helper function to generate size ranges
             const generateSizeRanges = () => {
@@ -161,6 +223,9 @@
             };
             
             const sizeRanges = generateSizeRanges();
+            
+            // Generate all possible states (000 to 111)
+            const allStates = ['000', '001', '010', '011', '100', '101', '110', '111'];
             
             const [prediction, setPrediction] = React.useState({
                 adr: '',
@@ -238,18 +303,29 @@
             const calculateProbabilities = () => {
                 let filteredData = data;
 
-                // Apply color filters
-                if (filters.adrColor !== 'all') {
-                    filteredData = filteredData.filter(row => row.adrColor === filters.adrColor);
-                }
-                if (filters.odrColor !== 'all') {
-                    filteredData = filteredData.filter(row => row.odrColor === filters.odrColor);
-                }
-                if (filters.rdrColor !== 'all') {
-                    filteredData = filteredData.filter(row => row.rdrColor === filters.rdrColor);
+                // Apply Previous Day filters
+                if (filters.fromState !== 'all') {
+                    filteredData = filteredData.filter(row => row.fromState === filters.fromState);
                 }
                 
-                // Apply size range filters
+                // Note: Previous day filters would need to look at the previous row's data
+                // For now, we'll focus on the from/to state transitions
+
+                // Apply Current Day filters
+                if (filters.toState !== 'all') {
+                    filteredData = filteredData.filter(row => row.toState === filters.toState);
+                }
+                if (filters.currAdrColor !== 'all') {
+                    filteredData = filteredData.filter(row => row.adrColor === filters.currAdrColor);
+                }
+                if (filters.currOdrColor !== 'all') {
+                    filteredData = filteredData.filter(row => row.odrColor === filters.currOdrColor);
+                }
+                if (filters.currRdrColor !== 'all') {
+                    filteredData = filteredData.filter(row => row.rdrColor === filters.currRdrColor);
+                }
+                
+                // Apply Current Day size range filters
                 const applySizeFilter = (data, sizeValue, session) => {
                     if (sizeValue === 'all') return data;
                     
@@ -260,9 +336,9 @@
                     });
                 };
                 
-                filteredData = applySizeFilter(filteredData, filters.adrSizeRange, 'adr');
-                filteredData = applySizeFilter(filteredData, filters.odrSizeRange, 'odr');
-                filteredData = applySizeFilter(filteredData, filters.rdrSizeRange, 'rdr');
+                filteredData = applySizeFilter(filteredData, filters.currAdrSizeRange, 'adr');
+                filteredData = applySizeFilter(filteredData, filters.currOdrSizeRange, 'odr');
+                filteredData = applySizeFilter(filteredData, filters.currRdrSizeRange, 'rdr');
 
                 // Calculate transition probabilities
                 const transitionCounts = {};
@@ -348,13 +424,25 @@
                     <h1>Trading Probability Dashboard</h1>
                     
                     <div className="card">
-                        <h2>Filters</h2>
+                        <h2>PREVIOUS DAY</h2>
                         <div className="filters">
+                            <div className="filter-group">
+                                <label>From State:</label>
+                                <select 
+                                    value={filters.fromState} 
+                                    onChange={e => setFilters({...filters, fromState: e.target.value})}
+                                >
+                                    <option value="all">All</option>
+                                    {allStates.map(state => (
+                                        <option key={state} value={state}>{state}</option>
+                                    ))}
+                                </select>
+                            </div>
                             <div className="filter-group">
                                 <label>ADR Color:</label>
                                 <select 
-                                    value={filters.adrColor} 
-                                    onChange={e => setFilters({...filters, adrColor: e.target.value})}
+                                    value={filters.prevAdrColor} 
+                                    onChange={e => setFilters({...filters, prevAdrColor: e.target.value})}
                                 >
                                     <option value="all">All</option>
                                     <option value="red">Red</option>
@@ -365,8 +453,8 @@
                             <div className="filter-group">
                                 <label>ODR Color:</label>
                                 <select 
-                                    value={filters.odrColor} 
-                                    onChange={e => setFilters({...filters, odrColor: e.target.value})}
+                                    value={filters.prevOdrColor} 
+                                    onChange={e => setFilters({...filters, prevOdrColor: e.target.value})}
                                 >
                                     <option value="all">All</option>
                                     <option value="red">Red</option>
@@ -377,8 +465,8 @@
                             <div className="filter-group">
                                 <label>RDR Color:</label>
                                 <select 
-                                    value={filters.rdrColor} 
-                                    onChange={e => setFilters({...filters, rdrColor: e.target.value})}
+                                    value={filters.prevRdrColor} 
+                                    onChange={e => setFilters({...filters, prevRdrColor: e.target.value})}
                                 >
                                     <option value="all">All</option>
                                     <option value="red">Red</option>
@@ -389,8 +477,8 @@
                             <div className="filter-group">
                                 <label>ADR Box Size:</label>
                                 <select 
-                                    value={filters.adrSizeRange} 
-                                    onChange={e => setFilters({...filters, adrSizeRange: e.target.value})}
+                                    value={filters.prevAdrSizeRange} 
+                                    onChange={e => setFilters({...filters, prevAdrSizeRange: e.target.value})}
                                 >
                                     {sizeRanges.map(range => (
                                         <option key={range.value} value={range.value}>
@@ -402,8 +490,8 @@
                             <div className="filter-group">
                                 <label>ODR Box Size:</label>
                                 <select 
-                                    value={filters.odrSizeRange} 
-                                    onChange={e => setFilters({...filters, odrSizeRange: e.target.value})}
+                                    value={filters.prevOdrSizeRange} 
+                                    onChange={e => setFilters({...filters, prevOdrSizeRange: e.target.value})}
                                 >
                                     {sizeRanges.map(range => (
                                         <option key={range.value} value={range.value}>
@@ -415,8 +503,8 @@
                             <div className="filter-group">
                                 <label>RDR Box Size:</label>
                                 <select 
-                                    value={filters.rdrSizeRange} 
-                                    onChange={e => setFilters({...filters, rdrSizeRange: e.target.value})}
+                                    value={filters.prevRdrSizeRange} 
+                                    onChange={e => setFilters({...filters, prevRdrSizeRange: e.target.value})}
                                 >
                                     {sizeRanges.map(range => (
                                         <option key={range.value} value={range.value}>
@@ -425,6 +513,150 @@
                                     ))}
                                 </select>
                             </div>
+                        </div>
+                    </div>
+
+                    <div className="card">
+                        <h2>CURRENT DAY</h2>
+                        <div className="filters">
+                            <div className="filter-group">
+                                <label>To State:</label>
+                                <select 
+                                    value={filters.toState} 
+                                    onChange={e => setFilters({...filters, toState: e.target.value})}
+                                >
+                                    <option value="all">All</option>
+                                    {allStates.map(state => (
+                                        <option key={state} value={state}>{state}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="filter-group">
+                                <label>ADR Color:</label>
+                                <select 
+                                    value={filters.currAdrColor} 
+                                    onChange={e => setFilters({...filters, currAdrColor: e.target.value})}
+                                >
+                                    <option value="all">All</option>
+                                    <option value="red">Red</option>
+                                    <option value="green">Green</option>
+                                    <option value="equal">Equal</option>
+                                </select>
+                            </div>
+                            <div className="filter-group">
+                                <label>ODR Color:</label>
+                                <select 
+                                    value={filters.currOdrColor} 
+                                    onChange={e => setFilters({...filters, currOdrColor: e.target.value})}
+                                >
+                                    <option value="all">All</option>
+                                    <option value="red">Red</option>
+                                    <option value="green">Green</option>
+                                    <option value="equal">Equal</option>
+                                </select>
+                            </div>
+                            <div className="filter-group">
+                                <label>RDR Color:</label>
+                                <select 
+                                    value={filters.currRdrColor} 
+                                    onChange={e => setFilters({...filters, currRdrColor: e.target.value})}
+                                >
+                                    <option value="all">All</option>
+                                    <option value="red">Red</option>
+                                    <option value="green">Green</option>
+                                    <option value="equal">Equal</option>
+                                </select>
+                            </div>
+                            <div className="filter-group">
+                                <label>ADR Box Size:</label>
+                                <select 
+                                    value={filters.currAdrSizeRange} 
+                                    onChange={e => setFilters({...filters, currAdrSizeRange: e.target.value})}
+                                >
+                                    {sizeRanges.map(range => (
+                                        <option key={range.value} value={range.value}>
+                                            {range.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="filter-group">
+                                <label>ODR Box Size:</label>
+                                <select 
+                                    value={filters.currOdrSizeRange} 
+                                    onChange={e => setFilters({...filters, currOdrSizeRange: e.target.value})}
+                                >
+                                    {sizeRanges.map(range => (
+                                        <option key={range.value} value={range.value}>
+                                            {range.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="filter-group">
+                                <label>RDR Box Size:</label>
+                                <select 
+                                    value={filters.currRdrSizeRange} 
+                                    onChange={e => setFilters({...filters, currRdrSizeRange: e.target.value})}
+                                >
+                                    {sizeRanges.map(range => (
+                                        <option key={range.value} value={range.value}>
+                                            {range.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div className="prediction-section">
+                            <h3>RDR Prediction</h3>
+                            <p>Given ADR and ODR states, predict the most likely RDR outcome</p>
+                            <div className="prediction-inputs">
+                                <div className="filter-group">
+                                    <label>ADR State:</label>
+                                    <select 
+                                        value={prediction.adr} 
+                                        onChange={e => setPrediction({...prediction, adr: e.target.value})}
+                                    >
+                                        <option value="">Select</option>
+                                        <option value="0">0</option>
+                                        <option value="1">1</option>
+                                    </select>
+                                </div>
+                                <div className="filter-group">
+                                    <label>ODR State:</label>
+                                    <select 
+                                        value={prediction.odr} 
+                                        onChange={e => setPrediction({...prediction, odr: e.target.value})}
+                                    >
+                                        <option value="">Select</option>
+                                        <option value="0">0</option>
+                                        <option value="1">1</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            {rdrPrediction && (
+                                <div className="prediction-result">
+                                    <h3>Prediction Results</h3>
+                                    <p>Pattern: {prediction.adr}{prediction.odr}? → Most likely RDR state</p>
+                                    <div className="probability-grid">
+                                        <div className="probability-item">
+                                            <div className="probability-label">RDR = 0</div>
+                                            <div className="probability-value">
+                                                {(rdrPrediction.probability0 * 100).toFixed(1)}%
+                                            </div>
+                                        </div>
+                                        <div className="probability-item">
+                                            <div className="probability-label">RDR = 1</div>
+                                            <div className="probability-value">
+                                                {(rdrPrediction.probability1 * 100).toFixed(1)}%
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p className="sample-size">Based on {rdrPrediction.sampleSize} samples</p>
+                                </div>
+                            )}
                         </div>
                     </div>
 
