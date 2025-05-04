@@ -231,43 +231,60 @@
             };
 
             const predictRDR = () => {
-                if (!adrState || !odrState) return null;
-
-                // Create the pattern we're looking for in FROM_STATE
-                const pattern = `${adrState}${odrState}`;
-                let matchingData = [];
-                
-                // Find all rows where FROM_STATE starts with our pattern
-                data.forEach(row => {
-                    if (row.fromState && row.fromState.startsWith(pattern)) {
-                        matchingData.push(row);
-                    }
-                });
-
-                // Now analyze what TO_STATE values occurred for this FROM_STATE pattern
-                // Count the RDR digit (3rd position) in the TO_STATE
-                const rdrOutcomes = { '0': 0, '1': 0 };
-                matchingData.forEach(row => {
-                    if (row.toState && row.toState.length >= 3) {
-                        const rdrDigit = row.toState[2];  // 3rd digit of TO_STATE
-                        if (rdrDigit === '0' || rdrDigit === '1') {
-                            rdrOutcomes[rdrDigit]++;
+                // If there's a specific FROM_STATE selected, use that
+                if (fromState !== 'all') {
+                    const matchingData = data.filter(row => row.fromState === fromState);
+                    
+                    // Count the RDR digit (3rd position) in the TO_STATE
+                    const rdrOutcomes = { '0': 0, '1': 0 };
+                    matchingData.forEach(row => {
+                        if (row.toState && row.toState.length >= 3) {
+                            const rdrDigit = row.toState[2];  // 3rd digit of TO_STATE
+                            if (rdrDigit === '0' || rdrDigit === '1') {
+                                rdrOutcomes[rdrDigit]++;
+                            }
                         }
-                    }
-                });
+                    });
 
-                const total = rdrOutcomes['0'] + rdrOutcomes['1'];
-                console.log('Pattern:', pattern);
-                console.log('Matching FROM_STATEs:', matchingData.map(r => r.fromState));
-                console.log('TO_STATEs:', matchingData.map(r => r.toState));
-                console.log('RDR outcomes:', rdrOutcomes);
+                    const total = rdrOutcomes['0'] + rdrOutcomes['1'];
+                    
+                    return {
+                        probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
+                        probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
+                        sampleSize: total,
+                        fromStateUsed: fromState
+                    };
+                }
                 
-                return {
-                    probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
-                    probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
-                    sampleSize: total,
-                    pattern: pattern
-                };
+                // If no specific FROM_STATE selected but ADR/ODR are selected
+                if (adrState && odrState) {
+                    const pattern = `${adrState}${odrState}`;
+                    const matchingData = data.filter(row => 
+                        row.fromState && row.fromState.startsWith(pattern)
+                    );
+                    
+                    // Count the RDR digit (3rd position) in the TO_STATE
+                    const rdrOutcomes = { '0': 0, '1': 0 };
+                    matchingData.forEach(row => {
+                        if (row.toState && row.toState.length >= 3) {
+                            const rdrDigit = row.toState[2];  // 3rd digit of TO_STATE
+                            if (rdrDigit === '0' || rdrDigit === '1') {
+                                rdrOutcomes[rdrDigit]++;
+                            }
+                        }
+                    });
+
+                    const total = rdrOutcomes['0'] + rdrOutcomes['1'];
+                    
+                    return {
+                        probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
+                        probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
+                        sampleSize: total,
+                        pattern: pattern
+                    };
+                }
+                
+                return null;
             };
 
             if (loading) {
@@ -344,7 +361,12 @@
                             {rdrPrediction && (
                                 <div className="prediction-result">
                                     <h3>Prediction Results</h3>
-                                    <p>When FROM_STATE starts with {rdrPrediction.pattern}, the RDR digit in TO_STATE is:</p>
+                                    <p>
+                                        {rdrPrediction.fromStateUsed 
+                                            ? `For FROM_STATE = ${rdrPrediction.fromStateUsed}, the RDR digit in TO_STATE is:`
+                                            : `When FROM_STATE starts with ${rdrPrediction.pattern}, the RDR digit in TO_STATE is:`
+                                        }
+                                    </p>
                                     <div className="probability-grid">
                                         <div className="probability-item">
                                             <div className="probability-label">RDR = 0</div>
