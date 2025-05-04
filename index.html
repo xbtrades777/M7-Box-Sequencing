@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trading Probability Dashboard</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js" crossOrigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js" crossOrigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.5/babel.min.js" crossOrigin="anonymous"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -134,6 +134,18 @@
     <div id="root"></div>
 
     <script type="text/babel">
+        // Global error handler to catch script errors
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('Script Error Details:', {
+                message: message,
+                source: source,
+                lineno: lineno,
+                colno: colno,
+                error: error
+            });
+            return true;
+        };
+
         const API_KEY = 'AIzaSyC-5W2K8tA4nbgoZcSWJUWwuANUeD2UA0Q';
         const SPREADSHEET_ID = '19ojHpq_oHNkx_MnPQU1QArIvJWzXEFVFaoaM3cG_YLU';
         const RANGE = 'With Confirmation!A:N';
@@ -159,7 +171,7 @@
                     const response = await fetch(url);
                     
                     if (!response.ok) {
-                        throw new Error(`Failed to fetch data: ${response.status}`);
+                        throw new Error(`Failed to fetch data: ${response.status} - ${response.statusText}`);
                     }
                     
                     const result = await response.json();
@@ -170,7 +182,6 @@
                     const dataRows = hasHeaders ? rows.slice(1) : rows;
                     
                     const processedData = dataRows.map(row => {
-                        // Parse FROM_STATE_TO_STATE (Column E, format: "xxx - xxx")
                         const transition = row[4] || '';
                         let fromState = '';
                         let toState = '';
@@ -202,7 +213,7 @@
                     setData(processedData);
                     setLoading(false);
                 } catch (err) {
-                    console.error('Error fetching data:', err);
+                    console.error('Error fetching data:', err.message);
                     setError(err.message);
                     setLoading(false);
                 }
@@ -248,10 +259,10 @@
             const predictRDR = () => {
                 console.log('predictRDR called with:', { fromState, adrState, odrState });
 
-                // Case 1: FROM_STATE is selected (e.g., 000)
-                if (fromState !== 'all') {
-                    const matchingData = data.filter(row => row.fromState === fromState);
-                    console.log(`Filtered by FROM_STATE=${fromState}: ${matchingData.length} rows`, matchingData);
+                if (adrState && odrState) {
+                    const pattern = `${adrState}${odrState}`;
+                    const matchingData = data.filter(row => row.fromState && row.fromState.startsWith(pattern));
+                    console.log(`Filtered by pattern=${pattern}: ${matchingData.length} rows`, matchingData);
 
                     const rdrOutcomes = { '0': 0, '1': 0 };
                     matchingData.forEach(row => {
@@ -273,12 +284,11 @@
                         probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
                         probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
                         sampleSize: total,
-                        fromStateUsed: fromState,
+                        pattern: pattern,
                         insufficientData: total === 0
                     };
                 }
 
-                // Case 2: Only ADR is selected (predict ODR)
                 if (adrState && !odrState) {
                     const matchingData = data.filter(row => row.fromState && row.fromState.startsWith(adrState));
                     console.log(`Filtered by ADR=${adrState}: ${matchingData.length} rows`, matchingData);
@@ -308,11 +318,9 @@
                     };
                 }
 
-                // Case 3: Both ADR and ODR are selected (predict RDR)
-                if (adrState && odrState) {
-                    const pattern = `${adrState}${odrState}`;
-                    const matchingData = data.filter(row => row.fromState && row.fromState.startsWith(pattern));
-                    console.log(`Filtered by pattern=${pattern}: ${matchingData.length} rows`, matchingData);
+                if (fromState !== 'all') {
+                    const matchingData = data.filter(row => row.fromState === fromState);
+                    console.log(`Filtered by FROM_STATE=${fromState}: ${matchingData.length} rows`, matchingData);
 
                     const rdrOutcomes = { '0': 0, '1': 0 };
                     matchingData.forEach(row => {
@@ -334,7 +342,7 @@
                         probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
                         probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
                         sampleSize: total,
-                        pattern: pattern,
+                        fromStateUsed: fromState,
                         insufficientData: total === 0
                     };
                 }
