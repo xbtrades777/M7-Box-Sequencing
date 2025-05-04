@@ -57,6 +57,9 @@
             color: #666;
             margin-bottom: 5px;
         }
+        .filter-group select {
+            width: 150px;
+        }
         .prediction-section {
             margin-top: 30px;
         }
@@ -125,10 +128,40 @@
                 adrColor: 'all',
                 odrColor: 'all',
                 rdrColor: 'all',
-                minBoxSize: '',
-                maxBoxSize: '',
-                session: 'all'
+                adrSizeRange: 'all',
+                odrSizeRange: 'all',
+                rdrSizeRange: 'all'
             });
+            // Helper function to generate size ranges
+            const generateSizeRanges = () => {
+                const ranges = [];
+                ranges.push({ label: 'All', value: 'all' });
+                
+                // Negative ranges
+                for (let i = -3.0; i < 0; i += 0.1) {
+                    const start = i.toFixed(2);
+                    const end = (i + 0.1).toFixed(2);
+                    ranges.push({ 
+                        label: `${start} to ${end}`, 
+                        value: `${start},${end}` 
+                    });
+                }
+                
+                // Positive ranges
+                for (let i = 0; i < 3.0; i += 0.1) {
+                    const start = i.toFixed(2);
+                    const end = (i + 0.1).toFixed(2);
+                    ranges.push({ 
+                        label: `${start} to ${end}`, 
+                        value: `${start},${end}` 
+                    });
+                }
+                
+                return ranges;
+            };
+            
+            const sizeRanges = generateSizeRanges();
+            
             const [prediction, setPrediction] = React.useState({
                 adr: '',
                 odr: ''
@@ -205,7 +238,7 @@
             const calculateProbabilities = () => {
                 let filteredData = data;
 
-                // Apply filters
+                // Apply color filters
                 if (filters.adrColor !== 'all') {
                     filteredData = filteredData.filter(row => row.adrColor === filters.adrColor);
                 }
@@ -215,24 +248,21 @@
                 if (filters.rdrColor !== 'all') {
                     filteredData = filteredData.filter(row => row.rdrColor === filters.rdrColor);
                 }
-                if (filters.minBoxSize !== '') {
-                    const min = parseFloat(filters.minBoxSize);
-                    filteredData = filteredData.filter(row => {
-                        const size = filters.session === 'all' 
-                            ? (row.adrSize + row.odrSize + row.rdrSize) / 3
-                            : row[`${filters.session}Size`];
-                        return size >= min;
+                
+                // Apply size range filters
+                const applySizeFilter = (data, sizeValue, session) => {
+                    if (sizeValue === 'all') return data;
+                    
+                    const [min, max] = sizeValue.split(',').map(parseFloat);
+                    return data.filter(row => {
+                        const size = row[`${session}Size`];
+                        return size >= min && size < max;
                     });
-                }
-                if (filters.maxBoxSize !== '') {
-                    const max = parseFloat(filters.maxBoxSize);
-                    filteredData = filteredData.filter(row => {
-                        const size = filters.session === 'all' 
-                            ? (row.adrSize + row.odrSize + row.rdrSize) / 3
-                            : row[`${filters.session}Size`];
-                        return size <= max;
-                    });
-                }
+                };
+                
+                filteredData = applySizeFilter(filteredData, filters.adrSizeRange, 'adr');
+                filteredData = applySizeFilter(filteredData, filters.odrSizeRange, 'odr');
+                filteredData = applySizeFilter(filteredData, filters.rdrSizeRange, 'rdr');
 
                 // Calculate transition probabilities
                 const transitionCounts = {};
@@ -357,36 +387,43 @@
                                 </select>
                             </div>
                             <div className="filter-group">
-                                <label>Box Size Session:</label>
+                                <label>ADR Box Size:</label>
                                 <select 
-                                    value={filters.session} 
-                                    onChange={e => setFilters({...filters, session: e.target.value})}
+                                    value={filters.adrSizeRange} 
+                                    onChange={e => setFilters({...filters, adrSizeRange: e.target.value})}
                                 >
-                                    <option value="all">All Sessions</option>
-                                    <option value="adr">ADR</option>
-                                    <option value="odr">ODR</option>
-                                    <option value="rdr">RDR</option>
+                                    {sizeRanges.map(range => (
+                                        <option key={range.value} value={range.value}>
+                                            {range.label}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                             <div className="filter-group">
-                                <label>Min Box Size:</label>
-                                <input 
-                                    type="number" 
-                                    value={filters.minBoxSize}
-                                    onChange={e => setFilters({...filters, minBoxSize: e.target.value})}
-                                    placeholder="0.0"
-                                    step="0.1"
-                                />
+                                <label>ODR Box Size:</label>
+                                <select 
+                                    value={filters.odrSizeRange} 
+                                    onChange={e => setFilters({...filters, odrSizeRange: e.target.value})}
+                                >
+                                    {sizeRanges.map(range => (
+                                        <option key={range.value} value={range.value}>
+                                            {range.label}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                             <div className="filter-group">
-                                <label>Max Box Size:</label>
-                                <input 
-                                    type="number" 
-                                    value={filters.maxBoxSize}
-                                    onChange={e => setFilters({...filters, maxBoxSize: e.target.value})}
-                                    placeholder="2.0"
-                                    step="0.1"
-                                />
+                                <label>RDR Box Size:</label>
+                                <select 
+                                    value={filters.rdrSizeRange} 
+                                    onChange={e => setFilters({...filters, rdrSizeRange: e.target.value})}
+                                >
+                                    {sizeRanges.map(range => (
+                                        <option key={range.value} value={range.value}>
+                                            {range.label}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
                     </div>
