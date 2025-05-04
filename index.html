@@ -191,10 +191,14 @@
 
                 if (fromState !== 'all') {
                     filteredData = filteredData.filter(row => row.fromState === fromState);
+                    console.log(`Filtered by fromState ${fromState}:`, filteredData.length);
                 }
                 if (toState !== 'all') {
                     filteredData = filteredData.filter(row => row.toState === toState);
+                    console.log(`Filtered by toState ${toState}:`, filteredData.length);
                 }
+
+                console.log('Total filtered data:', filteredData.length);
 
                 const transitionCounts = {};
                 const fromStateCounts = {};
@@ -221,22 +225,24 @@
             const predictRDR = () => {
                 if (!adrState || !odrState) return null;
 
-                // Find all transitions that start with the selected ADR and ODR pattern
-                const pattern = `${adrState}${odrState}`;
+                // Create the search pattern from ADR and ODR
+                const searchPattern = `${adrState}${odrState}`;
                 let matchingData = [];
                 
-                // Look for FROM_STATE patterns that match ADR+ODR
+                // Look for rows where FROM_STATE starts with the selected pattern
                 data.forEach(row => {
-                    if (row.fromState && row.fromState.substring(0, 2) === pattern) {
+                    if (row.fromState && row.fromState.startsWith(searchPattern)) {
                         matchingData.push(row);
+                        console.log('Match found:', row.fromState, '->', row.toState);
                     }
                 });
 
-                // Count what RDR values (3rd digit of TO_STATE) occurred
+                // Count what RDR values (3rd digit of FROM_STATE) occurred
+                // and what they transitioned to
                 const rdrOutcomes = { '0': 0, '1': 0 };
                 matchingData.forEach(row => {
-                    if (row.toState && row.toState.length >= 3) {
-                        const rdrDigit = row.toState[2];  // 3rd digit of TO_STATE
+                    if (row.fromState.length >= 3) {
+                        const rdrDigit = row.fromState[2];  // 3rd digit of FROM_STATE
                         if (rdrDigit === '0' || rdrDigit === '1') {
                             rdrOutcomes[rdrDigit]++;
                         }
@@ -244,11 +250,15 @@
                 });
 
                 const total = rdrOutcomes['0'] + rdrOutcomes['1'];
+                console.log('Search pattern:', searchPattern);
+                console.log('Matches found:', matchingData.length);
+                console.log('RDR outcomes:', rdrOutcomes);
                 
                 return {
                     probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
                     probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
-                    sampleSize: total
+                    sampleSize: total,
+                    matches: matchingData
                 };
             };
 
@@ -387,6 +397,32 @@
                                             <td>{(data.probability * 100).toFixed(1)}%</td>
                                             <td>{data.count}</td>
                                             <td>{data.total}</td>
+                                        </tr>
+                                    ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="card">
+                        <h2>Debug: All FROM_STATE = 000 entries</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>FROM_STATE</th>
+                                    <th>TO_STATE</th>
+                                    <th>Transition</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data
+                                    .filter(row => row.fromState === '000')
+                                    .map((row, index) => (
+                                        <tr key={index}>
+                                            <td>{row.date}</td>
+                                            <td>{row.fromState}</td>
+                                            <td>{row.toState}</td>
+                                            <td>{row.transition}</td>
                                         </tr>
                                     ))}
                             </tbody>
