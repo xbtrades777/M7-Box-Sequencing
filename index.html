@@ -233,24 +233,23 @@
             const predictRDR = () => {
                 if (!adrState || !odrState) return null;
 
-                // Create the search pattern from ADR and ODR
-                const searchPattern = `${adrState}${odrState}`;
+                // Create the pattern we're looking for in FROM_STATE
+                const pattern = `${adrState}${odrState}`;
                 let matchingData = [];
                 
-                // Look for rows where FROM_STATE starts with the selected pattern
+                // Find all rows where FROM_STATE starts with our pattern
                 data.forEach(row => {
-                    if (row.fromState && row.fromState.startsWith(searchPattern)) {
+                    if (row.fromState && row.fromState.startsWith(pattern)) {
                         matchingData.push(row);
-                        console.log('Match found:', row.fromState, '->', row.toState);
                     }
                 });
 
-                // Count what RDR values (3rd digit of FROM_STATE) occurred
-                // and what they transitioned to
+                // Now analyze what TO_STATE values occurred for this FROM_STATE pattern
+                // Count the RDR digit (3rd position) in the TO_STATE
                 const rdrOutcomes = { '0': 0, '1': 0 };
                 matchingData.forEach(row => {
-                    if (row.fromState.length >= 3) {
-                        const rdrDigit = row.fromState[2];  // 3rd digit of FROM_STATE
+                    if (row.toState && row.toState.length >= 3) {
+                        const rdrDigit = row.toState[2];  // 3rd digit of TO_STATE
                         if (rdrDigit === '0' || rdrDigit === '1') {
                             rdrOutcomes[rdrDigit]++;
                         }
@@ -258,15 +257,16 @@
                 });
 
                 const total = rdrOutcomes['0'] + rdrOutcomes['1'];
-                console.log('Search pattern:', searchPattern);
-                console.log('Matches found:', matchingData.length);
+                console.log('Pattern:', pattern);
+                console.log('Matching FROM_STATEs:', matchingData.map(r => r.fromState));
+                console.log('TO_STATEs:', matchingData.map(r => r.toState));
                 console.log('RDR outcomes:', rdrOutcomes);
                 
                 return {
                     probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
                     probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
                     sampleSize: total,
-                    matches: matchingData
+                    pattern: pattern
                 };
             };
 
@@ -344,7 +344,7 @@
                             {rdrPrediction && (
                                 <div className="prediction-result">
                                     <h3>Prediction Results</h3>
-                                    <p>When FROM_STATE starts with {adrState}{odrState}, the RDR outcomes are:</p>
+                                    <p>When FROM_STATE starts with {rdrPrediction.pattern}, the RDR digit in TO_STATE is:</p>
                                     <div className="probability-grid">
                                         <div className="probability-item">
                                             <div className="probability-label">RDR = 0</div>
