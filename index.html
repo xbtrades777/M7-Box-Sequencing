@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trading Probability Dashboard</title>
+    <title>M7B Seq Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js" crossOrigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js" crossOrigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.5/babel.min.js" crossOrigin="anonymous"></script>
@@ -72,7 +72,7 @@
             border-radius: 8px;
             border: 1px solid #b8d4e3;
         }
-        select {
+        select, input[type="date"] {
             padding: 8px;
             border-radius: 4px;
             border: 1px solid #ccc;
@@ -140,6 +140,16 @@
         .reset-button:hover {
             background-color: #c82333;
         }
+        .heatmap-placeholder {
+            text-align: center;
+            padding: 40px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            margin-top: 20px;
+            color: #666;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -169,8 +179,28 @@
             const [toState, setToState] = React.useState('all');
             const [adrState, setAdrState] = React.useState('');
             const [odrState, setOdrState] = React.useState('');
+            const [rdrState, setRdrState] = React.useState('');
+            const [startDate, setStartDate] = React.useState('');
+            const [endDate, setEndDate] = React.useState('');
+            const [dayOfWeek, setDayOfWeek] = React.useState('all');
+            const [adrSizeRange, setAdrSizeRange] = React.useState('all');
+            const [odrSizeRange, setOdrSizeRange] = React.useState('all');
+            const [rdrSizeRange, setRdrSizeRange] = React.useState('all');
 
             const allStates = ['000', '001', '010', '011', '100', '101', '110', '111'];
+            const daysOfWeek = ['all', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            const sizeRanges = [
+                'all',
+                '< 0.25',
+                '0.26 - 0.5',
+                '0.51 - 0.75',
+                '0.76 - 1.0',
+                '1.01 - 1.25',
+                '1.26 - 1.5',
+                '1.51 - 1.75',
+                '1.76 - 2.0',
+                '> 2.0'
+            ];
 
             React.useEffect(() => {
                 fetchData();
@@ -209,6 +239,9 @@
                             fromState: fromState,
                             toState: toState,
                             transition: transition,
+                            m7_box_size_ADR: Math.abs(parseFloat(row[8] || 0)),
+                            m7_box_size_ODR: Math.abs(parseFloat(row[9] || 0)),
+                            m7_box_size_RDR: Math.abs(parseFloat(row[10] || 0)),
                         };
                     }).filter(row => row.date && row.fromState && row.toState && /^[0-1]{3}$/.test(row.fromState) && /^[0-1]{3}$/.test(row.toState));
                     
@@ -230,18 +263,65 @@
                 }
             };
 
+            const filterBySizeRange = (value, range) => {
+                if (range === 'all') return true;
+                if (range === '< 0.25') return value < 0.25;
+                if (range === '0.26 - 0.5') return value >= 0.26 && value <= 0.5;
+                if (range === '0.51 - 0.75') return value >= 0.51 && value <= 0.75;
+                if (range === '0.76 - 1.0') return value >= 0.76 && value <= 1.0;
+                if (range === '1.01 - 1.25') return value >= 1.01 && value <= 1.25;
+                if (range === '1.26 - 1.5') return value >= 1.26 && value <= 1.5;
+                if (range === '1.51 - 1.75') return value >= 1.51 && value <= 1.75;
+                if (range === '1.76 - 2.0') return value >= 1.76 && value <= 2.0;
+                if (range === '> 2.0') return value > 2.0;
+                return true;
+            };
+
             const calculateProbabilities = () => {
                 let filteredData = data;
                 
+                // Apply Date Range Filter
+                if (startDate) {
+                    filteredData = filteredData.filter(row => {
+                        const rowDate = new Date(row.date);
+                        const start = new Date(startDate);
+                        return rowDate >= start;
+                    });
+                }
+                if (endDate) {
+                    filteredData = filteredData.filter(row => {
+                        const rowDate = new Date(row.date);
+                        const end = new Date(endDate);
+                        return rowDate <= end;
+                    });
+                }
+                
+                // Apply Day of the Week Filter
+                if (dayOfWeek !== 'all') {
+                    filteredData = filteredData.filter(row => row.day === dayOfWeek);
+                    console.log(`Filtered by dayOfWeek ${dayOfWeek}:`, filteredData.length);
+                }
+
+                // Apply From State Filter
                 if (fromState !== 'all') {
                     console.log(`Looking for fromState: "${fromState}"`);
                     filteredData = filteredData.filter(row => row.fromState === fromState);
                     console.log(`Filtered by fromState ${fromState}:`, filteredData.length, filteredData);
                 }
+
+                // Apply To State Filter
                 if (toState !== 'all') {
                     filteredData = filteredData.filter(row => row.toState === toState);
                     console.log(`Filtered by toState ${toState}:`, filteredData.length);
                 }
+
+                // Apply M7 Box Size Filters
+                filteredData = filteredData.filter(row => 
+                    filterBySizeRange(row.m7_box_size_ADR, adrSizeRange) &&
+                    filterBySizeRange(row.m7_box_size_ODR, odrSizeRange) &&
+                    filterBySizeRange(row.m7_box_size_RDR, rdrSizeRange)
+                );
+                console.log('After M7 Box Size filters:', filteredData.length);
 
                 console.log('Total filtered data:', filteredData.length);
 
@@ -268,16 +348,66 @@
             };
 
             const predictRDR = () => {
-                console.log('predictRDR called with:', { fromState, adrState, odrState });
+                console.log('predictRDR called with:', { fromState, adrState, odrState, rdrState, adrSizeRange, odrSizeRange, rdrSizeRange });
 
                 let filteredData = data;
+
+                // Apply Date Range Filter
+                if (startDate) {
+                    filteredData = filteredData.filter(row => {
+                        const rowDate = new Date(row.date);
+                        const start = new Date(startDate);
+                        return rowDate >= start;
+                    });
+                }
+                if (endDate) {
+                    filteredData = filteredData.filter(row => {
+                        const rowDate = new Date(row.date);
+                        const end = new Date(endDate);
+                        return rowDate <= end;
+                    });
+                }
+
+                // Apply Day of the Week Filter
+                if (dayOfWeek !== 'all') {
+                    filteredData = filteredData.filter(row => row.day === dayOfWeek);
+                }
+
+                // Apply From State Filter
                 if (fromState !== 'all') {
                     console.log('Applying FROM_STATE filter:', fromState);
                     filteredData = filteredData.filter(row => row.fromState === fromState);
                     console.log(`After FROM_STATE filter: ${filteredData.length} rows`, filteredData);
                 }
 
-                // Case 1: Both ADR and ODR are selected (predict RDR from TO_STATE digits)
+                // Apply M7 Box Size Filters
+                filteredData = filteredData.filter(row => 
+                    filterBySizeRange(row.m7_box_size_ADR, adrSizeRange) &&
+                    filterBySizeRange(row.m7_box_size_ODR, odrSizeRange) &&
+                    filterBySizeRange(row.m7_box_size_RDR, rdrSizeRange)
+                );
+                console.log('After M7 Box Size filters in predictRDR:', filteredData.length);
+
+                // Case 1: ADR, ODR, and RDR are selected (filter TO_STATE)
+                if (adrState && odrState && rdrState) {
+                    const matchingData = filteredData.filter(row => {
+                        if (!row.toState || row.toState.length < 3) return false;
+                        const toAdr = row.toState[0];
+                        const toOdr = row.toState[1];
+                        const toRdr = row.toState[2];
+                        return toAdr === adrState && toOdr === odrState && toRdr === rdrState;
+                    });
+                    console.log(`Filtered by ADR=${adrState}, ODR=${odrState}, RDR=${rdrState}: ${matchingData.length} rows`, matchingData);
+
+                    return {
+                        type: 'filter',
+                        sampleSize: matchingData.length,
+                        pattern: `${adrState}${odrState}${rdrState}`,
+                        insufficientData: matchingData.length === 0
+                    };
+                }
+
+                // Case 2: Both ADR and ODR are selected (predict RDR from TO_STATE digits)
                 if (adrState && odrState) {
                     const matchingData = filteredData.filter(row => {
                         if (!row.toState || row.toState.length < 3) return false;
@@ -312,7 +442,7 @@
                     };
                 }
 
-                // Case 2: Only ADR is selected (predict ODR from TO_STATE digits)
+                // Case 3: Only ADR is selected (predict ODR from TO_STATE digits)
                 if (adrState && !odrState) {
                     const matchingData = filteredData.filter(row => {
                         if (!row.toState || row.toState.length < 3) return false;
@@ -346,7 +476,7 @@
                     };
                 }
 
-                // Case 3: FROM_STATE is selected (predict full TO_STATE)
+                // Case 4: FROM_STATE is selected (predict full TO_STATE)
                 if (fromState !== 'all') {
                     console.log('FROM_STATE selected, checking data for:', fromState);
                     const matchingData = filteredData;
@@ -386,6 +516,13 @@
                 setToState('all');
                 setAdrState('');
                 setOdrState('');
+                setRdrState('');
+                setStartDate('');
+                setEndDate('');
+                setDayOfWeek('all');
+                setAdrSizeRange('all');
+                setOdrSizeRange('all');
+                setRdrSizeRange('all');
             };
 
             if (loading) {
@@ -394,7 +531,7 @@
 
             if (error) {
                 return <div className="dashboard">
-                    <h1>Trading Probability Dashboard</h1>
+                    <h1>M7B Seq Dashboard</h1>
                     <div className="error">Error: {error}</div>
                 </div>;
             }
@@ -410,6 +547,8 @@
                         ? 'ADR = ' + prediction.adrStateUsed 
                         : 'pattern ' + prediction.pattern) + 
                       '. Please try different filters.'
+                    : prediction.type === 'filter'
+                    ? `Data filtered for TO_STATE starting with ${prediction.pattern}:`
                     : prediction.fromStateUsed
                     ? 'For FROM_STATE = ' + prediction.fromStateUsed + ', the TO_STATE is:'
                     : prediction.adrStateUsed
@@ -419,7 +558,7 @@
 
             return (
                 <div className="dashboard">
-                    <h1>Trading Probability Dashboard</h1>
+                    <h1>M7B Seq Dashboard</h1>
                     
                     <div className="card">
                         <h2>PREVIOUS DAY</h2>
@@ -431,6 +570,30 @@
                                     <option value="all">All</option>
                                     {allStates.map(state => (
                                         <option key={state} value={state}>{state}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="filter-group">
+                                <label>Start Date:</label>
+                                <input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={e => setStartDate(e.target.value)}
+                                />
+                            </div>
+                            <div className="filter-group">
+                                <label>End Date:</label>
+                                <input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={e => setEndDate(e.target.value)}
+                                />
+                            </div>
+                            <div className="filter-group">
+                                <label>Day of Week:</label>
+                                <select value={dayOfWeek} onChange={e => setDayOfWeek(e.target.value)}>
+                                    {daysOfWeek.map(day => (
+                                        <option key={day} value={day}>{day === 'all' ? 'All' : day}</option>
                                     ))}
                                 </select>
                             </div>
@@ -451,11 +614,35 @@
                                     ))}
                                 </select>
                             </div>
+                            <div className="filter-group">
+                                <label>M7 Box Size ADR:</label>
+                                <select value={adrSizeRange} onChange={e => setAdrSizeRange(e.target.value)}>
+                                    {sizeRanges.map(range => (
+                                        <option key={range} value={range}>{range === 'all' ? 'All' : range}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="filter-group">
+                                <label>M7 Box Size ODR:</label>
+                                <select value={odrSizeRange} onChange={e => setOdrSizeRange(e.target.value)}>
+                                    {sizeRanges.map(range => (
+                                        <option key={range} value={range}>{range === 'all' ? 'All' : range}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="filter-group">
+                                <label>M7 Box Size RDR:</label>
+                                <select value={rdrSizeRange} onChange={e => setRdrSizeRange(e.target.value)}>
+                                    {sizeRanges.map(range => (
+                                        <option key={range} value={range}>{range === 'all' ? 'All' : range}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                         
                         <div className="prediction-section">
                             <h3>Prediction</h3>
-                            <p>Select ADR to predict ODR, then add ODR to predict RDR, or use FROM_STATE for TO_STATE</p>
+                            <p>Select ADR to predict ODR, then add ODR to predict RDR, or use FROM_STATE for TO_STATE. Optionally select RDR to filter directly.</p>
                             <div className="prediction-inputs">
                                 <div className="filter-group">
                                     <label>ADR State:</label>
@@ -473,6 +660,14 @@
                                         <option value="1">1</option>
                                     </select>
                                 </div>
+                                <div className="filter-group">
+                                    <label>RDR State:</label>
+                                    <select value={rdrState} onChange={e => { console.log('RDR changed to:', e.target.value); setRdrState(e.target.value); }} disabled={!adrState || !odrState}>
+                                        <option value="">Select</option>
+                                        <option value="0">0</option>
+                                        <option value="1">1</option>
+                                    </select>
+                                </div>
                             </div>
                             
                             {prediction && (
@@ -480,6 +675,11 @@
                                     <h3>Prediction Results</h3>
                                     {prediction.insufficientData ? (
                                         <p>{predictionMessage}</p>
+                                    ) : prediction.type === 'filter' ? (
+                                        <div>
+                                            <p>{predictionMessage}</p>
+                                            <p className="sample-size">Found {prediction.sampleSize} matching samples</p>
+                                        </div>
                                     ) : (
                                         <div>
                                             <p>{predictionMessage}</p>
@@ -577,6 +777,11 @@
                                     ))}
                             </tbody>
                         </table>
+
+                        <div className="heatmap-placeholder">
+                            <h3>Transition Probability Heatmap</h3>
+                            <p>[Placeholder] This section will display a heatmap of transition probabilities from FROM_STATE to TO_STATE, with intensity based on probability values (0.0 to 1.0). To be implemented using a visualization library like D3.js or Plotly.</p>
+                        </div>
                     </div>
                 </div>
             );
