@@ -177,7 +177,6 @@
                         transition: (row[4] || '').trim(),
                     })).filter(row => row.date && row.fromState && row.toState);
                     
-                    // Log unique FROM_STATE and TO_STATE values
                     const uniqueFromStates = [...new Set(processedData.map(row => row.fromState))];
                     const uniqueToStates = [...new Set(processedData.map(row => row.toState))];
                     console.log('Unique FROM_STATE values:', uniqueFromStates);
@@ -232,7 +231,6 @@
             const predictRDR = () => {
                 console.log('predictRDR called with:', { fromState, adrState, odrState });
 
-                // Case 1: Specific FROM_STATE selected
                 if (fromState !== 'all') {
                     const matchingData = data.filter(row => row.fromState === fromState);
                     console.log(`Filtered by FROM_STATE=${fromState}: ${matchingData.length} rows`);
@@ -247,4 +245,269 @@
                                 console.warn(`Invalid RDR digit in TO_STATE: ${row.toState}`);
                             }
                         } else {
-                            console.warn(`Invali
+                            console.warn(`Invalid TO_STATE: ${row.toState}`);
+                        }
+                    });
+
+                    const total = rdrOutcomes['0'] + rdrOutcomes['1'];
+                    console.log(`RDR outcomes:`, rdrOutcomes, `Total: ${total}`);
+
+                    return {
+                        probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
+                        probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
+                        sampleSize: total,
+                        fromStateUsed: fromState,
+                        insufficientData: total === 0
+                    };
+                }
+
+                if (adrState && odrState) {
+                    const pattern = `${adrState}${odrState}`;
+                    const matchingData = data.filter(row => 
+                        row.fromState && row.fromState.startsWith(pattern)
+                    );
+                    console.log(`Filtered by pattern=${pattern}: ${matchingData.length} rows`);
+
+                    const rdrOutcomes = { '0': 0, '1': 0 };
+                    matchingData.forEach(row => {
+                        if (row.toState && row.toState.length >= 3) {
+                            const rdrDigit = row.toState[2];
+                            if (rdrDigit === '0' || rdrDigit === '1') {
+                                rdrOutcomes[rdrDigit]++;
+                            } else {
+                                console.warn(`Invalid RDR digit in TO_STATE: ${row.toState}`);
+                            }
+                        } else {
+                            console.warn(`Invalid TO_STATE: ${row.toState}`);
+                        }
+                    });
+
+                    const total = rdrOutcomes['0'] + rdrOutcomes['1'];
+                    console.log(`RDR outcomes:`, rdrOutcomes, `Total: ${total}`);
+
+                    return {
+                        probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
+                        probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
+                        sampleSize: total,
+                        pattern: pattern,
+                        insufficientData: total === 0
+                    };
+                }
+
+                console.log('No valid prediction inputs provided');
+                return null;
+            };
+
+            if (loading) {
+                return <div className="loading">Loading data...</div>;
+            }
+
+            if (error) {
+                return <div className="dashboard">
+                    <h1>Trading Probability Dashboard</h1>
+                    <div className="error">Error: {error}</div>
+                </div>;
+            }
+
+            const probabilities = calculateProbabilities();
+            const rdrPrediction = predictRDR();
+            const rdrPredictionMessage = rdrPrediction
+                ? rdrPrediction.insufficientData
+                    ? 'No data available for the selected ' + (rdrPrediction.fromStateUsed ? 'FROM_STATE = ' + rdrPrediction.fromStateUsed : 'pattern ' + rdrPrediction.pattern) + '. Please try different filters.'
+                    : rdrPrediction.fromStateUsed
+                    ? 'For FROM_STATE = ' + rdrPrediction.fromStateUsed + ', the RDR digit in TO_STATE is:'
+                    : 'When FROM_STATE starts with ' + rdrPrediction.pattern + ', the RDR digit in TO_STATE is:'
+                : null;
+
+            return (
+                <div className="dashboard">
+                    <h1>Trading Probability Dashboard</h1>
+                    
+                    <div className="card">
+                        <h2>PREVIOUS DAY</h2>
+                        <div className="state-label">FROM STATE</div>
+                        <div className="filters">
+                            <div className="filter-group">
+                                <label>From State:</label>
+                                <select value={fromState} onChange={e => setFromState(e.target.value)}>
+                                    <option value="all">All</option>
+                                    {allStates.map(state => (
+                                        <option key={state} value={state}>{state}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="card">
+                        <h2>CURRENT DAY</h2>
+                        <div className="state-label">TO STATE</div>
+                        <div className="filters">
+                            <div className="filter-group">
+                                <label>To State:</label>
+                                <select value={toState} onChange={e => setToState(e.target.value)}>
+                                    <option value="all">All</option>
+                                    {allStates.map(state => (
+                                        <option key={state} value={state}>{state}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div className="prediction-section">
+                            <h3>RDR Prediction</h3>
+                            <p>Given ADR and ODR states, predict the most likely RDR outcome</p>
+                            <div className="prediction-inputs">
+                                <div className="filter-group">
+                                    <label>ADR State:</label>
+                                    <select value={adrState} onChange={e => setAdrState(e.target.value)}>
+                                        <option value="">Select</option>
+                                        <option value="0">0</option>
+                                        <option value="1">1</option>
+                                    </select>
+                                </div>
+                                <div className="filter-group">
+                                    <label>ODR State:</label>
+                                    <select value={odrState} onChange={e => setOdrState(e.target.value)}>
+                                        <option value="">Select</option>
+                                        <option value="0">0</option>
+                                        <option value="1">1</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            {rdrPrediction && (
+                                <div className="prediction-result">
+                                    <h3>Prediction Results</h3>
+                                    {rdrPrediction.insufficientData ? (
+                                        <p>{rdrPredictionMessage}</p>
+                                    ) : (
+                                        <div>
+                                            <p>{rdrPredictionMessage}</p>
+                                            <div className="probability-grid">
+                                                <div className="probability-item">
+                                                    <div className="probability-label">RDR = 0</div>
+                                                    <div className="probability-value">
+                                                        {(rdrPrediction.probability0 * 100).toFixed(1)}%
+                                                    </div>
+                                                </div>
+                                                <div className="probability-item">
+                                                    <div className="probability-label">RDR = 1</div>
+                                                    <div className="probability-value">
+                                                        {(rdrPrediction.probability1 * 100).toFixed(1)}%
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p className="sample-size">Based on {rdrPrediction.sampleSize} samples</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="card">
+                        <h2>State Transition Probabilities</h2>
+                        <div className="probability-grid">
+                            {Object.entries(probabilities)
+                                .sort((a, b) => b[1].probability - a[1].probability)
+                                .slice(0, 12)
+                                .map(([transition, data]) => (
+                                    <div key={transition} className="probability-item">
+                                        <div className="probability-label">{transition}</div>
+                                        <div className="probability-value">
+                                            {(data.probability * 100).toFixed(1)}%
+                                        </div>
+                                        <div className="sample-size">
+                                            Sample size: {data.count}/{data.total}
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
+                    </div>
+
+                    <div className="card">
+                        <h2>All Transition Probabilities</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Transition</th>
+                                    <th>Probability</th>
+                                    <th>Count</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {Object.entries(probabilities)
+                                    .sort((a, b) => b[1].probability - a[1].probability)
+                                    .map(([transition, data]) => (
+                                        <tr key={transition}>
+                                            <td>{transition}</td>
+                                            <td>{(data.probability * 100).toFixed(1)}%</td>
+                                            <td>{data.count}</td>
+                                            <td>{data.total}</td>
+                                        </tr>
+                                    ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="card">
+                        <h2>Debug: All FROM_STATE = 000 entries</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>FROM_STATE</th>
+                                    <th>TO_STATE</th>
+                                    <th>Transition</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data
+                                    .filter(row => row.fromState === '000')
+                                    .map((row, index) => (
+                                        <tr key={index}>
+                                            <td>{row.date}</td>
+                                            <td>{row.fromState}</td>
+                                            <td>{row.toState}</td>
+                                            <td>{row.transition}</td>
+                                        </tr>
+                                    ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="card">
+                        <h2>Debug: All entries containing "000" in FROM_STATE</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>FROM_STATE</th>
+                                    <th>TO_STATE</th>
+                                    <th>Transition</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data
+                                    .filter(row => row.fromState && row.fromState.includes('000'))
+                                    .map((row, index) => (
+                                        <tr key={index}>
+                                            <td>{row.date}</td>
+                                            <td>"{row.fromState}"</td>
+                                            <td>{row.toState}</td>
+                                            <td>{row.transition}</td>
+                                        </tr>
+                                    ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<ProbabilityDashboard />, document.getElementById('root'));
+    </script>
+</body>
+</html>
