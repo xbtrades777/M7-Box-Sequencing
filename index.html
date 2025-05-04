@@ -170,19 +170,26 @@
                     const dataRows = hasHeaders ? rows.slice(1) : rows;
                     
                     const processedData = dataRows.map(row => {
-                        // Convert FROM_STATE and TO_STATE to strings and pad to 3 digits
-                        const fromState = row[2] ? String(row[2]).padStart(3, '0') : '';
-                        const toState = row[3] ? String(row[3]).padStart(3, '0') : '';
+                        // Parse FROM_STATE_TO_STATE (Column E, format: "xxx - xxx")
+                        const transition = row[4] || '';
+                        let fromState = '';
+                        let toState = '';
+                        if (transition) {
+                            const parts = transition.split(' - ');
+                            if (parts.length === 2 && parts[0].length >= 3 && parts[1].length >= 3) {
+                                fromState = parts[0].trim().padStart(3, '0');
+                                toState = parts[1].trim().padStart(3, '0');
+                            }
+                        }
                         return {
                             date: row[0] || '',
                             day: row[1] || '',
                             fromState: fromState,
                             toState: toState,
-                            transition: row[4] || '',
+                            transition: transition,
                         };
-                    }).filter(row => row.date && row.fromState && row.toState);
+                    }).filter(row => row.date && row.fromState && row.toState && /^[0-1]{3}$/.test(row.fromState) && /^[0-1]{3}$/.test(row.toState));
                     
-                    // Debugging: Log all rows with FROM_STATE = '000'
                     const zeroData = processedData.filter(row => row.fromState === '000');
                     console.log('Rows with FROM_STATE = 000:', zeroData.length, zeroData);
                     
@@ -241,6 +248,7 @@
             const predictRDR = () => {
                 console.log('predictRDR called with:', { fromState, adrState, odrState });
 
+                // Case 1: FROM_STATE is selected (e.g., 000)
                 if (fromState !== 'all') {
                     const matchingData = data.filter(row => row.fromState === fromState);
                     console.log(`Filtered by FROM_STATE=${fromState}: ${matchingData.length} rows`, matchingData);
@@ -254,8 +262,6 @@
                             } else {
                                 console.warn(`Invalid RDR digit in TO_STATE: ${row.toState}`);
                             }
-                        } else {
-                            console.warn(`Invalid TO_STATE: ${row.toState}`);
                         }
                     });
 
@@ -263,6 +269,7 @@
                     console.log(`RDR outcomes:`, rdrOutcomes, `Total: ${total}`);
 
                     return {
+                        type: 'rdr',
                         probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
                         probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
                         sampleSize: total,
@@ -271,11 +278,40 @@
                     };
                 }
 
+                // Case 2: Only ADR is selected (predict ODR)
+                if (adrState && !odrState) {
+                    const matchingData = data.filter(row => row.fromState && row.fromState.startsWith(adrState));
+                    console.log(`Filtered by ADR=${adrState}: ${matchingData.length} rows`, matchingData);
+
+                    const odrOutcomes = { '0': 0, '1': 0 };
+                    matchingData.forEach(row => {
+                        if (row.toState && row.toState.length >= 3) {
+                            const odrDigit = row.toState[1];
+                            if (odrDigit === '0' || odrDigit === '1') {
+                                odrOutcomes[odrDigit]++;
+                            } else {
+                                console.warn(`Invalid ODR digit in TO_STATE: ${row.toState}`);
+                            }
+                        }
+                    });
+
+                    const total = odrOutcomes['0'] + odrOutcomes['1'];
+                    console.log(`ODR outcomes:`, odrOutcomes, `Total: ${total}`);
+
+                    return {
+                        type: 'odr',
+                        probability0: total > 0 ? odrOutcomes['0'] / total : 0,
+                        probability1: total > 0 ? odrOutcomes['1'] / total : 0,
+                        sampleSize: total,
+                        adrStateUsed: adrState,
+                        insufficientData: total === 0
+                    };
+                }
+
+                // Case 3: Both ADR and ODR are selected (predict RDR)
                 if (adrState && odrState) {
                     const pattern = `${adrState}${odrState}`;
-                    const matchingData = data.filter(row => 
-                        row.fromState && row.fromState.startsWith(pattern)
-                    );
+                    const matchingData = data.filter(row => row.fromState && row.fromState.startsWith(pattern));
                     console.log(`Filtered by pattern=${pattern}: ${matchingData.length} rows`, matchingData);
 
                     const rdrOutcomes = { '0': 0, '1': 0 };
@@ -287,8 +323,6 @@
                             } else {
                                 console.warn(`Invalid RDR digit in TO_STATE: ${row.toState}`);
                             }
-                        } else {
-                            console.warn(`Invalid TO_STATE: ${row.toState}`);
                         }
                     });
 
@@ -296,6 +330,7 @@
                     console.log(`RDR outcomes:`, rdrOutcomes, `Total: ${total}`);
 
                     return {
+                        type: 'rdr',
                         probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
                         probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
                         sampleSize: total,
@@ -320,13 +355,21 @@
             }
 
             const probabilities = calculateProbabilities();
-            const rdrPrediction = predictRDR();
-            const rdrPredictionMessage = rdrPrediction
-                ? rdrPrediction.insufficientData
-                    ? 'No data available for the selected ' + (rdrPrediction.fromStateUsed ? 'FROM_STATE = ' + rdrPrediction.fromStateUsed : 'pattern ' + rdrPrediction.pattern) + '. Please try different filters.'
-                    : rdrPrediction.fromStateUsed
-                    ? 'For FROM_STATE = ' + rdrPrediction.fromStateUsed + ', the RDR digit in TO_STATE is:'
-                    : 'When FROM_STATE starts with ' + rdrPrediction.pattern + ', the RDR digit in TO_STATE is:'
+            const prediction = predictRDR();
+            const predictionMessage = prediction
+                ? prediction.insufficientData
+                    ? 'No data available for the selected ' + 
+                      (prediction.fromStateUsed 
+                        ? 'FROM_STATE = ' + prediction.fromStateUsed 
+                        : prediction.adrStateUsed 
+                        ? 'ADR = ' + prediction.adrStateUsed 
+                        : 'pattern ' + prediction.pattern) + 
+                      '. Please try different filters.'
+                    : prediction.fromStateUsed
+                    ? 'For FROM_STATE = ' + prediction.fromStateUsed + ', the RDR digit in TO_STATE is:'
+                    : prediction.adrStateUsed
+                    ? 'For ADR = ' + prediction.adrStateUsed + ', the ODR digit in TO_STATE is:'
+                    : 'When FROM_STATE starts with ' + prediction.pattern + ', the RDR digit in TO_STATE is:'
                 : null;
 
             return (
@@ -365,8 +408,8 @@
                         </div>
                         
                         <div className="prediction-section">
-                            <h3>RDR Prediction</h3>
-                            <p>Given ADR and ODR states, predict the most likely RDR outcome</p>
+                            <h3>Prediction</h3>
+                            <p>Select ADR to predict ODR, then add ODR to predict RDR</p>
                             <div className="prediction-inputs">
                                 <div className="filter-group">
                                     <label>ADR State:</label>
@@ -378,7 +421,7 @@
                                 </div>
                                 <div className="filter-group">
                                     <label>ODR State:</label>
-                                    <select value={odrState} onChange={e => setOdrState(e.target.value)}>
+                                    <select value={odrState} onChange={e => setOdrState(e.target.value)} disabled={!adrState}>
                                         <option value="">Select</option>
                                         <option value="0">0</option>
                                         <option value="1">1</option>
@@ -386,29 +429,29 @@
                                 </div>
                             </div>
                             
-                            {rdrPrediction && (
+                            {prediction && (
                                 <div className="prediction-result">
                                     <h3>Prediction Results</h3>
-                                    {rdrPrediction.insufficientData ? (
-                                        <p>{rdrPredictionMessage}</p>
+                                    {prediction.insufficientData ? (
+                                        <p>{predictionMessage}</p>
                                     ) : (
                                         <div>
-                                            <p>{rdrPredictionMessage}</p>
+                                            <p>{predictionMessage}</p>
                                             <div className="probability-grid">
                                                 <div className="probability-item">
-                                                    <div className="probability-label">RDR = 0</div>
+                                                    <div className="probability-label">{prediction.type === 'odr' ? 'ODR = 0' : 'RDR = 0'}</div>
                                                     <div className="probability-value">
-                                                        {(rdrPrediction.probability0 * 100).toFixed(1)}%
+                                                        {(prediction.probability0 * 100).toFixed(1)}%
                                                     </div>
                                                 </div>
                                                 <div className="probability-item">
-                                                    <div className="probability-label">RDR = 1</div>
+                                                    <div className="probability-label">{prediction.type === 'odr' ? 'ODR = 1' : 'RDR = 1'}</div>
                                                     <div className="probability-value">
-                                                        {(rdrPrediction.probability1 * 100).toFixed(1)}%
+                                                        {(prediction.probability1 * 100).toFixed(1)}%
                                                     </div>
                                                 </div>
                                             </div>
-                                            <p className="sample-size">Based on {rdrPrediction.sampleSize} samples</p>
+                                            <p className="sample-size">Based on {prediction.sampleSize} samples</p>
                                         </div>
                                     )}
                                 </div>
