@@ -1,46 +1,4 @@
-const calculateProbabilities = () => {
-                let filteredData = data;
-
-                // Apply Previous Day filters
-                if (filters.fromState !== 'all') {
-                    filteredData = filteredData.filter(row => row.fromState === filters.fromState);
-                }
-                
-                // Note: Previous day filters would need to look at the previous row's data
-                // For now, we'll focus on the from/to state transitions
-
-                // Apply Current Day filters
-                if (filters.toState !== 'all') {
-                    filteredData = filteredData.filter(row => row.toState === filters.toState);
-                }
-                if (filters.currAdrColor !== 'all') {
-                    filteredData = filteredData.filter(row => row.adrColor === filters.currAdrColor);
-                }
-                if (filters.currOdrColor !== 'all') {
-                    filteredData = filteredData.filter(row => row.odrColor === filters.currOdrColor);
-                }
-                if (filters.currRdrColor !== 'all') {
-                    filteredData = filteredData.filter(row => row.rdrColor === filters.currRdrColor);
-                }
-                
-                // Apply Current Day size range filters
-                const applySizeFilter = (data, sizeValue, session) => {
-                    if (sizeValue === 'all') return data;
-                    
-                    const [min, max] = sizeValue.split(',').map(parseFloat);
-                    return data.filter(row => {
-                        const size = row[`${session}Size`];
-                        return size >= min && size < max;
-                    });
-                };
-                
-                filteredData = applySizeFilter(filteredData, filters.currAdrSizeRange, 'adr');
-                filteredData = applySizeFilter(filteredData, filters.currOdrSizeRange, 'odr');
-                filteredData = applySizeFilter(filteredData, filters.currRdrSizeRange, 'rdr');
-
-                // Calculate transition probabilities
-                const transitionCounts = {};
-                const fromStateCounts<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -99,27 +57,6 @@ const calculateProbabilities = () => {
             color: #666;
             margin-bottom: 5px;
         }
-        .filter-group select {
-            width: 150px;
-        }
-        h3 {
-            margin-bottom: 10px;
-            color: #333;
-        }
-        .card h2 {
-            border-bottom: 2px solid #0066cc;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-        }
-        .state-label {
-            background-color: #f0f8ff;
-            padding: 8px 15px;
-            margin: 15px 0;
-            border-left: 4px solid #0066cc;
-            font-weight: bold;
-            display: block;
-            width: fit-content;
-        }
         .prediction-section {
             margin-top: 30px;
         }
@@ -170,70 +107,26 @@ const calculateProbabilities = () => {
             color: #666;
             margin-top: 5px;
         }
-        .heatmap-container {
-            margin: 20px 0;
-            padding: 20px;
-            background: white;
+        .filter-group select {
+            width: 150px;
         }
-        
-        .heatmap-title {
-            text-align: center;
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 20px;
+        h3 {
+            margin-bottom: 10px;
             color: #333;
         }
-        
-        .heatmap-grid {
-            display: grid;
-            grid-template-columns: 50px repeat(8, 60px);
-            gap: 2px;
+        .card h2 {
+            border-bottom: 2px solid #0066cc;
+            padding-bottom: 10px;
             margin-bottom: 20px;
         }
-        
-        .heatmap-cell {
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: 500;
-            color: #333;
-            border-radius: 4px;
-        }
-        
-        .heatmap-header {
+        .state-label {
+            background-color: #f0f8ff;
+            padding: 8px 15px;
+            margin: 15px 0;
+            border-left: 4px solid #0066cc;
             font-weight: bold;
-            background: #f5f5f5;
-        }
-        
-        .heatmap-label {
-            font-weight: bold;
-            background: #f5f5f5;
-            text-align: center;
-        }
-        
-        .heatmap-legend {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            margin-top: 10px;
-            gap: 10px;
-        }
-        
-        .legend-gradient {
-            width: 200px;
-            height: 20px;
-            background: linear-gradient(to right, #e3f2fd, #bbdefb, #90caf9, #64b5f6, #42a5f5, #2196f3, #1976d2, #0d47a1);
-            border-radius: 4px;
-        }
-        
-        .legend-labels {
-            display: flex;
-            justify-content: space-between;
-            width: 200px;
-            font-size: 12px;
-            color: #666;
+            display: block;
+            width: fit-content;
         }
     </style>
 </head>
@@ -243,68 +136,18 @@ const calculateProbabilities = () => {
     <script type="text/babel">
         const API_KEY = 'AIzaSyC-5W2K8tA4nbgoZcSWJUWwuANUeD2UA0Q';
         const SPREADSHEET_ID = '19ojHpq_oHNkx_MnPQU1QArIvJWzXEFVFaoaM3cG_YLU';
-        const RANGE = 'With Confirmation!A:N'; // Correct sheet name
+        const RANGE = 'With Confirmation!A:N';
 
-        const ProbabilityDashboard = () => {
+        function ProbabilityDashboard() {
             const [data, setData] = React.useState([]);
             const [loading, setLoading] = React.useState(true);
             const [error, setError] = React.useState(null);
-            const [filters, setFilters] = React.useState({
-                // Previous Day filters
-                fromState: 'all',
-                prevAdrColor: 'all',
-                prevOdrColor: 'all',
-                prevRdrColor: 'all',
-                prevAdrSizeRange: 'all',
-                prevOdrSizeRange: 'all',
-                prevRdrSizeRange: 'all',
-                
-                // Current Day filters
-                toState: 'all',
-                currAdrColor: 'all',
-                currOdrColor: 'all',
-                currRdrColor: 'all',
-                currAdrSizeRange: 'all',
-                currOdrSizeRange: 'all',
-                currRdrSizeRange: 'all'
-            });
-            // Helper function to generate size ranges
-            const generateSizeRanges = () => {
-                const ranges = [];
-                ranges.push({ label: 'All', value: 'all' });
-                
-                // Negative ranges
-                for (let i = -3.0; i < 0; i += 0.1) {
-                    const start = i.toFixed(2);
-                    const end = (i + 0.1).toFixed(2);
-                    ranges.push({ 
-                        label: `${start} to ${end}`, 
-                        value: `${start},${end}` 
-                    });
-                }
-                
-                // Positive ranges
-                for (let i = 0; i < 3.0; i += 0.1) {
-                    const start = i.toFixed(2);
-                    const end = (i + 0.1).toFixed(2);
-                    ranges.push({ 
-                        label: `${start} to ${end}`, 
-                        value: `${start},${end}` 
-                    });
-                }
-                
-                return ranges;
-            };
-            
-            const sizeRanges = generateSizeRanges();
-            
-            // Generate all possible states (000 to 111)
+            const [fromState, setFromState] = React.useState('all');
+            const [toState, setToState] = React.useState('all');
+            const [adrState, setAdrState] = React.useState('');
+            const [odrState, setOdrState] = React.useState('');
+
             const allStates = ['000', '001', '010', '011', '100', '101', '110', '111'];
-            
-            const [prediction, setPrediction] = React.useState({
-                adr: '',
-                odr: ''
-            });
 
             React.useEffect(() => {
                 fetchData();
@@ -312,40 +155,18 @@ const calculateProbabilities = () => {
 
             const fetchData = async () => {
                 try {
-                    console.log('Spreadsheet ID:', SPREADSHEET_ID);
-                    console.log('API Key:', API_KEY);
                     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}?key=${API_KEY}`;
-                    console.log('Fetching from URL:', url);
-                    
                     const response = await fetch(url);
                     
                     if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error('Error response:', errorText);
-                        let errorMessage;
-                        try {
-                            const errorJson = JSON.parse(errorText);
-                            errorMessage = errorJson.error.message;
-                        } catch (e) {
-                            errorMessage = errorText;
-                        }
-                        
-                        if (response.status === 400) {
-                            throw new Error(`Error 400: ${errorMessage}. This often means the spreadsheet ID is incorrect or the sheet is not properly shared.`);
-                        } else if (response.status === 403) {
-                            throw new Error(`Error 403: ${errorMessage}. Please make sure the spreadsheet is shared publicly.`);
-                        } else if (response.status === 404) {
-                            throw new Error(`Error 404: ${errorMessage}. Spreadsheet not found.`);
-                        }
-                        throw new Error(`Failed to fetch data: ${response.status} - ${errorMessage}`);
+                        throw new Error(`Failed to fetch data: ${response.status}`);
                     }
                     
                     const result = await response.json();
                     const rows = result.values;
                     
-                    // Parse data, skipping header row if it exists
                     const headers = rows[0];
-                    const hasHeaders = headers && headers[0] === 'Date'; // Check if first row is headers
+                    const hasHeaders = headers && headers[0] === 'Date';
                     const dataRows = hasHeaders ? rows.slice(1) : rows;
                     
                     const processedData = dataRows.map(row => ({
@@ -360,10 +181,7 @@ const calculateProbabilities = () => {
                         adrSize: parseFloat(row[8]) || 0,
                         odrSize: parseFloat(row[9]) || 0,
                         rdrSize: parseFloat(row[10]) || 0,
-                        probL: parseFloat(row[11]) || 0,
-                        probM: parseFloat(row[12]) || 0,
-                        probN: parseFloat(row[13]) || 0,
-                    })).filter(row => row.date && row.fromState && row.toState); // Filter out empty rows
+                    })).filter(row => row.date && row.fromState && row.toState);
                     
                     setData(processedData);
                     setLoading(false);
@@ -375,86 +193,22 @@ const calculateProbabilities = () => {
             };
 
             const calculateProbabilities = () => {
-                let filteredData = [];
+                let filteredData = data;
 
-                // We need to filter based on previous day attributes
-                for (let i = 1; i < data.length; i++) {
-                    const currentRow = data[i];
-                    const previousRow = data[i - 1];
-                    
-                    let includeRow = true;
-
-                    // Apply Previous Day filters (using the previous row's data)
-                    if (filters.fromState !== 'all' && previousRow.toState !== filters.fromState) {
-                        includeRow = false;
-                    }
-                    if (filters.prevAdrColor !== 'all' && previousRow.adrColor !== filters.prevAdrColor) {
-                        includeRow = false;
-                    }
-                    if (filters.prevOdrColor !== 'all' && previousRow.odrColor !== filters.prevOdrColor) {
-                        includeRow = false;
-                    }
-                    if (filters.prevRdrColor !== 'all' && previousRow.rdrColor !== filters.prevRdrColor) {
-                        includeRow = false;
-                    }
-                    
-                    // Apply Previous Day size range filters  
-                    const applySizeFilter = (value, rangeStr) => {
-                        if (rangeStr === 'all') return true;
-                        const [min, max] = rangeStr.split(',').map(parseFloat);
-                        return value >= min && value < max;
-                    };
-                    
-                    if (!applySizeFilter(previousRow.adrSize, filters.prevAdrSizeRange)) {
-                        includeRow = false;
-                    }
-                    if (!applySizeFilter(previousRow.odrSize, filters.prevOdrSizeRange)) {
-                        includeRow = false;
-                    }
-                    if (!applySizeFilter(previousRow.rdrSize, filters.prevRdrSizeRange)) {
-                        includeRow = false;
-                    }
-
-                    // Apply Current Day filters (using the current row's data)
-                    if (filters.toState !== 'all' && currentRow.toState !== filters.toState) {
-                        includeRow = false;
-                    }
-                    if (filters.currAdrColor !== 'all' && currentRow.adrColor !== filters.currAdrColor) {
-                        includeRow = false;
-                    }
-                    if (filters.currOdrColor !== 'all' && currentRow.odrColor !== filters.currOdrColor) {
-                        includeRow = false;
-                    }
-                    if (filters.currRdrColor !== 'all' && currentRow.rdrColor !== filters.currRdrColor) {
-                        includeRow = false;
-                    }
-                    
-                    if (!applySizeFilter(currentRow.adrSize, filters.currAdrSizeRange)) {
-                        includeRow = false;
-                    }
-                    if (!applySizeFilter(currentRow.odrSize, filters.currOdrSizeRange)) {
-                        includeRow = false;
-                    }
-                    if (!applySizeFilter(currentRow.rdrSize, filters.currRdrSizeRange)) {
-                        includeRow = false;
-                    }
-
-                    if (includeRow) {
-                        filteredData.push({
-                            ...currentRow,
-                            actualFromState: previousRow.toState  // The actual previous day's state
-                        });
-                    }
+                if (fromState !== 'all') {
+                    filteredData = filteredData.filter(row => row.fromState === fromState);
+                }
+                if (toState !== 'all') {
+                    filteredData = filteredData.filter(row => row.toState === toState);
                 }
 
-                // Calculate transition probabilities
                 const transitionCounts = {};
                 const fromStateCounts = {};
 
                 filteredData.forEach(row => {
-                    const key = `${row.actualFromState} → ${row.toState}`;
+                    const key = `${row.fromState} → ${row.toState}`;
                     transitionCounts[key] = (transitionCounts[key] || 0) + 1;
-                    fromStateCounts[row.actualFromState] = (fromStateCounts[row.actualFromState] || 0) + 1;
+                    fromStateCounts[row.fromState] = (fromStateCounts[row.fromState] || 0) + 1;
                 });
 
                 const probabilities = {};
@@ -467,198 +221,36 @@ const calculateProbabilities = () => {
                     };
                 });
 
-                console.log('Filtered data count:', filteredData.length);
-                console.log('Transition counts:', transitionCounts);
-                
                 return probabilities;
             };
 
-            const HeatmapComponent = ({ probabilities }) => {
-                // Create a matrix of probabilities
-                const states = ['000', '001', '010', '011', '100', '101', '110', '111'];
-                const matrix = {};
+            const predictRDR = () => {
+                if (!adrState || !odrState) return null;
+
+                const pattern = `${adrState}${odrState}`;
+                let matchingData = [];
                 
-                // Initialize matrix with zeros
-                states.forEach(fromState => {
-                    matrix[fromState] = {};
-                    states.forEach(toState => {
-                        matrix[fromState][toState] = 0;
-                    });
-                });
-                
-                // Fill matrix with actual probabilities
-                Object.entries(probabilities).forEach(([key, data]) => {
-                    const [fromState, toState] = key.split(' → ');
-                    if (matrix[fromState] && matrix[fromState][toState] !== undefined) {
-                        matrix[fromState][toState] = data.probability;
+                data.forEach(row => {
+                    if (row.toState && row.toState.substring(0, 2) === pattern) {
+                        matchingData.push(row);
                     }
                 });
-                
-                // Function to get color based on probability
-                const getColor = (probability) => {
-                    if (probability === 0) return '#f5f5f5';
-                    
-                    // Blue color scale
-                    const intensity = probability;
-                    if (intensity > 0.8) return '#0d47a1';
-                    if (intensity > 0.7) return '#1565c0';
-                    if (intensity > 0.6) return '#1976d2';
-                    if (intensity > 0.5) return '#1e88e5';
-                    if (intensity > 0.4) return '#2196f3';
-                    if (intensity > 0.3) return '#42a5f5';
-                    if (intensity > 0.2) return '#64b5f6';
-                    if (intensity > 0.1) return '#90caf9';
-                    if (intensity > 0.05) return '#bbdefb';
-                    return '#e3f2fd';
-                };
-                
-                // Function to get text color based on background
-                const getTextColor = (probability) => {
-                    return probability > 0.5 ? '#ffffff' : '#333333';
-                };
-                
-                return (
-                    <div className="heatmap-container">
-                        <div className="heatmap-title">Transition Probability Heatmap</div>
-                        <div className="heatmap-grid">
-                            {/* Empty corner cell */}
-                            <div className="heatmap-cell heatmap-header"></div>
-                            
-                            {/* Column headers */}
-                            {states.map(state => (
-                                <div key={`header-${state}`} className="heatmap-cell heatmap-header">
-                                    {state}
-                                </div>
-                            ))}
-                            
-                            {/* Rows */}
-                            {states.map(fromState => (
-                                <React.Fragment key={`row-${fromState}`}>
-                                    <div className="heatmap-cell heatmap-label">{fromState}</div>
-                                    {states.map(toState => {
-                                        const probability = matrix[fromState][toState];
-                                        return (
-                                            <div
-                                                key={`cell-${fromState}-${toState}`}
-                                                className="heatmap-cell"
-                                                style={{
-                                                    backgroundColor: getColor(probability),
-                                                    color: getTextColor(probability)
-                                                }}
-                                                title={`${fromState} → ${toState}: ${(probability * 100).toFixed(1)}%`}
-                                            >
-                                                {probability > 0 ? (probability * 100).toFixed(0) : ''}
-                                            </div>
-                                        );
-                                    })}
-                                </React.Fragment>
-                            ))}
-                        </div>
-                        
-                        <div className="heatmap-legend">
-                            <span style={{ fontSize: '12px', color: '#666' }}>Transition Probability</span>
-                            <div className="legend-gradient"></div>
-                            <div className="legend-labels">
-                                <span>0.0</span>
-                                <span>0.5</span>
-                                <span>1.0</span>
-                            </div>
-                        </div>
-                    </div>
-                );
-            };
 
-            // Heatmap Component
-            const HeatmapComponent = (props) => {
-                const { probabilities } = props;
-                console.log('Heatmap probabilities:', probabilities);
-                
-                // Create a matrix of probabilities
-                const states = ['000', '001', '010', '011', '100', '101', '110', '111'];
-                const matrix = {};
-                
-                // Initialize matrix with zeros
-                states.forEach(fromState => {
-                    matrix[fromState] = {};
-                    states.forEach(toState => {
-                        matrix[fromState][toState] = 0;
-                    });
+                const rdrOutcomes = { '0': 0, '1': 0 };
+                matchingData.forEach(row => {
+                    const rdrDigit = row.toState[2];
+                    if (rdrDigit) {
+                        rdrOutcomes[rdrDigit]++;
+                    }
                 });
+
+                const total = rdrOutcomes['0'] + rdrOutcomes['1'];
                 
-                // Fill matrix with actual probabilities
-                if (probabilities) {
-                    Object.entries(probabilities).forEach(([key, data]) => {
-                        const [fromState, toState] = key.split(' → ');
-                        if (matrix[fromState] && matrix[fromState][toState] !== undefined) {
-                            matrix[fromState][toState] = data.probability;
-                        }
-                    });
-                }
-                
-                // Function to get color based on probability
-                const getColor = (probability) => {
-                    if (probability === 0) return '#f5f5f5';
-                    
-                    // Blue color scale
-                    const intensity = probability;
-                    if (intensity > 0.8) return '#0d47a1';
-                    if (intensity > 0.7) return '#1565c0';
-                    if (intensity > 0.6) return '#1976d2';
-                    if (intensity > 0.5) return '#1e88e5';
-                    if (intensity > 0.4) return '#2196f3';
-                    if (intensity > 0.3) return '#42a5f5';
-                    if (intensity > 0.2) return '#64b5f6';
-                    if (intensity > 0.1) return '#90caf9';
-                    if (intensity > 0.05) return '#bbdefb';
-                    return '#e3f2fd';
+                return {
+                    probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
+                    probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
+                    sampleSize: total
                 };
-                
-                // Function to get text color based on background
-                const getTextColor = (probability) => {
-                    return probability > 0.5 ? '#ffffff' : '#333333';
-                };
-                
-                return React.createElement('div', { className: 'heatmap-container' },
-                    React.createElement('div', { className: 'heatmap-title' }, 'Transition Probability Heatmap'),
-                    React.createElement('div', { className: 'heatmap-grid' },
-                        React.createElement('div', { className: 'heatmap-cell heatmap-header' }),
-                        states.map(state => 
-                            React.createElement('div', { 
-                                key: `header-${state}`, 
-                                className: 'heatmap-cell heatmap-header' 
-                            }, state)
-                        ),
-                        states.map(fromState => [
-                            React.createElement('div', { 
-                                key: `label-${fromState}`,
-                                className: 'heatmap-cell heatmap-label' 
-                            }, fromState),
-                            ...states.map(toState => {
-                                const probability = matrix[fromState][toState];
-                                return React.createElement('div', {
-                                    key: `cell-${fromState}-${toState}`,
-                                    className: 'heatmap-cell',
-                                    style: {
-                                        backgroundColor: getColor(probability),
-                                        color: getTextColor(probability)
-                                    },
-                                    title: `${fromState} → ${toState}: ${(probability * 100).toFixed(1)}%`
-                                }, probability > 0 ? (probability * 100).toFixed(0) : '');
-                            })
-                        ]).flat()
-                    ),
-                    React.createElement('div', { className: 'heatmap-legend' },
-                        React.createElement('span', { 
-                            style: { fontSize: '12px', color: '#666' } 
-                        }, 'Transition Probability'),
-                        React.createElement('div', { className: 'legend-gradient' }),
-                        React.createElement('div', { className: 'legend-labels' },
-                            React.createElement('span', null, '0.0'),
-                            React.createElement('span', null, '0.5'),
-                            React.createElement('span', null, '1.0')
-                        )
-                    )
-                );
             };
 
             if (loading) {
@@ -666,30 +258,10 @@ const calculateProbabilities = () => {
             }
 
             if (error) {
-                return (
-                    <div className="dashboard">
-                        <h1>Trading Probability Dashboard</h1>
-                        <div className="error">
-                            <h3>Error Loading Data</h3>
-                            <p>{error}</p>
-                            <h4>Troubleshooting Steps:</h4>
-                            <ol>
-                                <li>Make sure your Google Sheet is shared publicly:
-                                    <ul>
-                                        <li>Open your Google Sheet</li>
-                                        <li>Click "Share" button</li>
-                                        <li>Click "Change to anyone with the link"</li>
-                                        <li>Set to "Viewer" access</li>
-                                        <li>Click "Done"</li>
-                                    </ul>
-                                </li>
-                                <li>Verify the spreadsheet ID is correct</li>
-                                <li>Check if the Google Sheets API is enabled in your Google Cloud project</li>
-                                <li>Refresh this page after making changes</li>
-                            </ol>
-                        </div>
-                    </div>
-                );
+                return <div className="dashboard">
+                    <h1>Trading Probability Dashboard</h1>
+                    <div className="error">Error: {error}</div>
+                </div>;
             }
 
             const probabilities = calculateProbabilities();
@@ -705,88 +277,10 @@ const calculateProbabilities = () => {
                         <div className="filters">
                             <div className="filter-group">
                                 <label>From State:</label>
-                                <select 
-                                    value={filters.fromState} 
-                                    onChange={e => setFilters({...filters, fromState: e.target.value})}
-                                >
+                                <select value={fromState} onChange={e => setFromState(e.target.value)}>
                                     <option value="all">All</option>
                                     {allStates.map(state => (
                                         <option key={state} value={state}>{state}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>ADR Color:</label>
-                                <select 
-                                    value={filters.prevAdrColor} 
-                                    onChange={e => setFilters({...filters, prevAdrColor: e.target.value})}
-                                >
-                                    <option value="all">All</option>
-                                    <option value="red">Red</option>
-                                    <option value="green">Green</option>
-                                    <option value="equal">Equal</option>
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>ODR Color:</label>
-                                <select 
-                                    value={filters.prevOdrColor} 
-                                    onChange={e => setFilters({...filters, prevOdrColor: e.target.value})}
-                                >
-                                    <option value="all">All</option>
-                                    <option value="red">Red</option>
-                                    <option value="green">Green</option>
-                                    <option value="equal">Equal</option>
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>RDR Color:</label>
-                                <select 
-                                    value={filters.prevRdrColor} 
-                                    onChange={e => setFilters({...filters, prevRdrColor: e.target.value})}
-                                >
-                                    <option value="all">All</option>
-                                    <option value="red">Red</option>
-                                    <option value="green">Green</option>
-                                    <option value="equal">Equal</option>
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>ADR Box Size:</label>
-                                <select 
-                                    value={filters.prevAdrSizeRange} 
-                                    onChange={e => setFilters({...filters, prevAdrSizeRange: e.target.value})}
-                                >
-                                    {sizeRanges.map(range => (
-                                        <option key={range.value} value={range.value}>
-                                            {range.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>ODR Box Size:</label>
-                                <select 
-                                    value={filters.prevOdrSizeRange} 
-                                    onChange={e => setFilters({...filters, prevOdrSizeRange: e.target.value})}
-                                >
-                                    {sizeRanges.map(range => (
-                                        <option key={range.value} value={range.value}>
-                                            {range.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>RDR Box Size:</label>
-                                <select 
-                                    value={filters.prevRdrSizeRange} 
-                                    onChange={e => setFilters({...filters, prevRdrSizeRange: e.target.value})}
-                                >
-                                    {sizeRanges.map(range => (
-                                        <option key={range.value} value={range.value}>
-                                            {range.label}
-                                        </option>
                                     ))}
                                 </select>
                             </div>
@@ -799,88 +293,10 @@ const calculateProbabilities = () => {
                         <div className="filters">
                             <div className="filter-group">
                                 <label>To State:</label>
-                                <select 
-                                    value={filters.toState} 
-                                    onChange={e => setFilters({...filters, toState: e.target.value})}
-                                >
+                                <select value={toState} onChange={e => setToState(e.target.value)}>
                                     <option value="all">All</option>
                                     {allStates.map(state => (
                                         <option key={state} value={state}>{state}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>ADR Color:</label>
-                                <select 
-                                    value={filters.currAdrColor} 
-                                    onChange={e => setFilters({...filters, currAdrColor: e.target.value})}
-                                >
-                                    <option value="all">All</option>
-                                    <option value="red">Red</option>
-                                    <option value="green">Green</option>
-                                    <option value="equal">Equal</option>
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>ODR Color:</label>
-                                <select 
-                                    value={filters.currOdrColor} 
-                                    onChange={e => setFilters({...filters, currOdrColor: e.target.value})}
-                                >
-                                    <option value="all">All</option>
-                                    <option value="red">Red</option>
-                                    <option value="green">Green</option>
-                                    <option value="equal">Equal</option>
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>RDR Color:</label>
-                                <select 
-                                    value={filters.currRdrColor} 
-                                    onChange={e => setFilters({...filters, currRdrColor: e.target.value})}
-                                >
-                                    <option value="all">All</option>
-                                    <option value="red">Red</option>
-                                    <option value="green">Green</option>
-                                    <option value="equal">Equal</option>
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>ADR Box Size:</label>
-                                <select 
-                                    value={filters.currAdrSizeRange} 
-                                    onChange={e => setFilters({...filters, currAdrSizeRange: e.target.value})}
-                                >
-                                    {sizeRanges.map(range => (
-                                        <option key={range.value} value={range.value}>
-                                            {range.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>ODR Box Size:</label>
-                                <select 
-                                    value={filters.currOdrSizeRange} 
-                                    onChange={e => setFilters({...filters, currOdrSizeRange: e.target.value})}
-                                >
-                                    {sizeRanges.map(range => (
-                                        <option key={range.value} value={range.value}>
-                                            {range.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>RDR Box Size:</label>
-                                <select 
-                                    value={filters.currRdrSizeRange} 
-                                    onChange={e => setFilters({...filters, currRdrSizeRange: e.target.value})}
-                                >
-                                    {sizeRanges.map(range => (
-                                        <option key={range.value} value={range.value}>
-                                            {range.label}
-                                        </option>
                                     ))}
                                 </select>
                             </div>
@@ -892,10 +308,7 @@ const calculateProbabilities = () => {
                             <div className="prediction-inputs">
                                 <div className="filter-group">
                                     <label>ADR State:</label>
-                                    <select 
-                                        value={prediction.adr} 
-                                        onChange={e => setPrediction({...prediction, adr: e.target.value})}
-                                    >
+                                    <select value={adrState} onChange={e => setAdrState(e.target.value)}>
                                         <option value="">Select</option>
                                         <option value="0">0</option>
                                         <option value="1">1</option>
@@ -903,10 +316,7 @@ const calculateProbabilities = () => {
                                 </div>
                                 <div className="filter-group">
                                     <label>ODR State:</label>
-                                    <select 
-                                        value={prediction.odr} 
-                                        onChange={e => setPrediction({...prediction, odr: e.target.value})}
-                                    >
+                                    <select value={odrState} onChange={e => setOdrState(e.target.value)}>
                                         <option value="">Select</option>
                                         <option value="0">0</option>
                                         <option value="1">1</option>
@@ -917,7 +327,7 @@ const calculateProbabilities = () => {
                             {rdrPrediction && (
                                 <div className="prediction-result">
                                     <h3>Prediction Results</h3>
-                                    <p>Pattern: {prediction.adr}{prediction.odr}? → Most likely RDR state</p>
+                                    <p>Pattern: {adrState}{odrState}? → Most likely RDR state</p>
                                     <div className="probability-grid">
                                         <div className="probability-item">
                                             <div className="probability-label">RDR = 0</div>
@@ -985,7 +395,7 @@ const calculateProbabilities = () => {
                     </div>
                 </div>
             );
-        };
+        }
 
         ReactDOM.render(<ProbabilityDashboard />, document.getElementById('root'));
     </script>
