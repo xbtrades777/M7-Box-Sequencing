@@ -680,57 +680,6 @@ const calculateProbabilities = () => {
                         </div>
                     </div>
 
-                    <div className="card prediction-section">
-                        <h2>RDR Prediction</h2>
-                        <p>Given ADR and ODR states, predict the most likely RDR outcome</p>
-                        <div className="prediction-inputs">
-                            <div className="filter-group">
-                                <label>ADR State:</label>
-                                <select 
-                                    value={prediction.adr} 
-                                    onChange={e => setPrediction({...prediction, adr: e.target.value})}
-                                >
-                                    <option value="">Select</option>
-                                    <option value="0">0</option>
-                                    <option value="1">1</option>
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>ODR State:</label>
-                                <select 
-                                    value={prediction.odr} 
-                                    onChange={e => setPrediction({...prediction, odr: e.target.value})}
-                                >
-                                    <option value="">Select</option>
-                                    <option value="0">0</option>
-                                    <option value="1">1</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        {rdrPrediction && (
-                            <div className="prediction-result">
-                                <h3>Prediction Results</h3>
-                                <p>Pattern: {prediction.adr}{prediction.odr}? → Most likely RDR state</p>
-                                <div className="probability-grid">
-                                    <div className="probability-item">
-                                        <div className="probability-label">RDR = 0</div>
-                                        <div className="probability-value">
-                                            {(rdrPrediction.probability0 * 100).toFixed(1)}%
-                                        </div>
-                                    </div>
-                                    <div className="probability-item">
-                                        <div className="probability-label">RDR = 1</div>
-                                        <div className="probability-value">
-                                            {(rdrPrediction.probability1 * 100).toFixed(1)}%
-                                        </div>
-                                    </div>
-                                </div>
-                                <p className="sample-size">Based on {rdrPrediction.sampleSize} samples</p>
-                            </div>
-                        )}
-                    </div>
-
                     <div className="card">
                         <h2>All Transition Probabilities</h2>
                         <table>
