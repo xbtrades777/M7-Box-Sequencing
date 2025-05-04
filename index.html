@@ -507,7 +507,9 @@
             );
         }
 
-        ReactDOM.render(<ProbabilityDashboard />, document.getElementById('root'));
+        // Updated rendering using createRoot
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ProbabilityDashboard />);
     </script>
 </body>
 </html>
