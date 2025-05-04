@@ -29,6 +29,7 @@
             gap: 20px;
             margin-bottom: 20px;
             flex-wrap: wrap;
+            align-items: center;
         }
         .filter-group {
             display: flex;
@@ -127,6 +128,17 @@
             font-weight: bold;
             display: block;
             width: fit-content;
+        }
+        .reset-button {
+            padding: 8px 16px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .reset-button:hover {
+            background-color: #c82333;
         }
     </style>
 </head>
@@ -258,11 +270,22 @@
             const predictRDR = () => {
                 console.log('predictRDR called with:', { fromState, adrState, odrState });
 
-                // Case 1: Both ADR and ODR are selected (predict RDR)
+                let filteredData = data;
+                if (fromState !== 'all') {
+                    console.log('Applying FROM_STATE filter:', fromState);
+                    filteredData = filteredData.filter(row => row.fromState === fromState);
+                    console.log(`After FROM_STATE filter: ${filteredData.length} rows`, filteredData);
+                }
+
+                // Case 1: Both ADR and ODR are selected (predict RDR from TO_STATE digits)
                 if (adrState && odrState) {
-                    const pattern = `${adrState}${odrState}`;
-                    const matchingData = data.filter(row => row.fromState && row.fromState.startsWith(pattern));
-                    console.log(`Filtered by pattern=${pattern}: ${matchingData.length} rows`, matchingData);
+                    const matchingData = filteredData.filter(row => {
+                        if (!row.toState || row.toState.length < 3) return false;
+                        const toAdr = row.toState[0];
+                        const toOdr = row.toState[1];
+                        return (!adrState || toAdr === adrState) && (!odrState || toOdr === odrState);
+                    });
+                    console.log(`Filtered by ADR=${adrState}, ODR=${odrState}: ${matchingData.length} rows`, matchingData);
 
                     const rdrOutcomes = { '0': 0, '1': 0 };
                     matchingData.forEach(row => {
@@ -283,16 +306,19 @@
                         type: 'rdr',
                         probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
                         probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
-                        sampleSize: total,
-                        pattern: pattern,
-                        insufficientData: total === 0
+                        sampleSize: matchingData.length,
+                        pattern: `${adrState}${odrState}`,
+                        insufficientData: matchingData.length === 0
                     };
                 }
 
-                // Case 2: Only ADR is selected (predict ODR)
+                // Case 2: Only ADR is selected (predict ODR from TO_STATE digits)
                 if (adrState && !odrState) {
-                    console.log('ADR selected, checking data for:', adrState);
-                    const matchingData = data.filter(row => row.fromState && row.fromState.startsWith(adrState));
+                    const matchingData = filteredData.filter(row => {
+                        if (!row.toState || row.toState.length < 3) return false;
+                        const toAdr = row.toState[0];
+                        return toAdr === adrState;
+                    });
                     console.log(`Filtered by ADR=${adrState}: ${matchingData.length} rows`, matchingData);
 
                     const odrOutcomes = { '0': 0, '1': 0 };
@@ -314,16 +340,16 @@
                         type: 'odr',
                         probability0: total > 0 ? odrOutcomes['0'] / total : 0,
                         probability1: total > 0 ? odrOutcomes['1'] / total : 0,
-                        sampleSize: total,
+                        sampleSize: matchingData.length,
                         adrStateUsed: adrState,
-                        insufficientData: total === 0
+                        insufficientData: matchingData.length === 0
                     };
                 }
 
-                // Case 3: FROM_STATE is selected (predict full TO_STATE for greater definition)
+                // Case 3: FROM_STATE is selected (predict full TO_STATE)
                 if (fromState !== 'all') {
                     console.log('FROM_STATE selected, checking data for:', fromState);
-                    const matchingData = data.filter(row => row.fromState === fromState);
+                    const matchingData = filteredData;
                     console.log(`Filtered by FROM_STATE=${fromState}: ${matchingData.length} rows`, matchingData);
 
                     const toStateCounts = {};
@@ -354,6 +380,14 @@
                 return null;
             };
 
+            const resetFilters = () => {
+                console.log('Resetting filters');
+                setFromState('all');
+                setToState('all');
+                setAdrState('');
+                setOdrState('');
+            };
+
             if (loading) {
                 return <div className="loading">Loading data...</div>;
             }
@@ -380,7 +414,7 @@
                     ? 'For FROM_STATE = ' + prediction.fromStateUsed + ', the TO_STATE is:'
                     : prediction.adrStateUsed
                     ? 'For ADR = ' + prediction.adrStateUsed + ', the ODR digit in TO_STATE is:'
-                    : 'When FROM_STATE starts with ' + prediction.pattern + ', the RDR digit in TO_STATE is:'
+                    : 'When FROM_STATE TO_STATE starts with ' + prediction.pattern + ', the RDR digit in TO_STATE is:'
                 : null;
 
             return (
@@ -400,6 +434,7 @@
                                     ))}
                                 </select>
                             </div>
+                            <button className="reset-button" onClick={resetFilters}>Reset Filters</button>
                         </div>
                     </div>
 
@@ -538,58 +573,6 @@
                                             <td>{(data.probability * 100).toFixed(1)}%</td>
                                             <td>{data.count}</td>
                                             <td>{data.total}</td>
-                                        </tr>
-                                    ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div className="card">
-                        <h2>Debug: All FROM_STATE = 000 entries</h2>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>FROM_STATE</th>
-                                    <th>TO_STATE</th>
-                                    <th>Transition</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data
-                                    .filter(row => row.fromState === '000')
-                                    .map((row, index) => (
-                                        <tr key={index}>
-                                            <td>{row.date}</td>
-                                            <td>{row.fromState}</td>
-                                            <td>{row.toState}</td>
-                                            <td>{row.transition}</td>
-                                        </tr>
-                                    ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div className="card">
-                        <h2>Debug: All entries containing "000" in FROM_STATE</h2>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>FROM_STATE</th>
-                                    <th>TO_STATE</th>
-                                    <th>Transition</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data
-                                    .filter(row => row.fromState && row.fromState.includes('000'))
-                                    .map((row, index) => (
-                                        <tr key={index}>
-                                            <td>{row.date}</td>
-                                            <td>"{row.fromState}"</td>
-                                            <td>{row.toState}</td>
-                                            <td>{row.transition}</td>
                                         </tr>
                                     ))}
                             </tbody>
