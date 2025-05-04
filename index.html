@@ -134,7 +134,6 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        // Global error handler to catch script errors
         window.onerror = function(message, source, lineno, colno, error) {
             console.error('Script Error Details:', {
                 message: message,
@@ -259,6 +258,7 @@
             const predictRDR = () => {
                 console.log('predictRDR called with:', { fromState, adrState, odrState });
 
+                // Case 1: Both ADR and ODR are selected (predict RDR)
                 if (adrState && odrState) {
                     const pattern = `${adrState}${odrState}`;
                     const matchingData = data.filter(row => row.fromState && row.fromState.startsWith(pattern));
@@ -289,7 +289,9 @@
                     };
                 }
 
+                // Case 2: Only ADR is selected (predict ODR)
                 if (adrState && !odrState) {
+                    console.log('ADR selected, checking data for:', adrState);
                     const matchingData = data.filter(row => row.fromState && row.fromState.startsWith(adrState));
                     console.log(`Filtered by ADR=${adrState}: ${matchingData.length} rows`, matchingData);
 
@@ -318,33 +320,34 @@
                     };
                 }
 
+                // Case 3: FROM_STATE is selected (predict full TO_STATE for greater definition)
                 if (fromState !== 'all') {
+                    console.log('FROM_STATE selected, checking data for:', fromState);
                     const matchingData = data.filter(row => row.fromState === fromState);
                     console.log(`Filtered by FROM_STATE=${fromState}: ${matchingData.length} rows`, matchingData);
 
-                    const rdrOutcomes = { '0': 0, '1': 0 };
+                    const toStateCounts = {};
                     matchingData.forEach(row => {
-                        if (row.toState && row.toState.length >= 3) {
-                            const rdrDigit = row.toState[2];
-                            if (rdrDigit === '0' || rdrDigit === '1') {
-                                rdrOutcomes[rdrDigit]++;
-                            } else {
-                                console.warn(`Invalid RDR digit in TO_STATE: ${row.toState}`);
-                            }
+                        if (row.toState && row.toState.length === 3) {
+                            toStateCounts[row.toState] = (toStateCounts[row.toState] || 0) + 1;
                         }
                     });
 
-                    const total = rdrOutcomes['0'] + rdrOutcomes['1'];
-                    console.log(`RDR outcomes:`, rdrOutcomes, `Total: ${total}`);
+                    const total = matchingData.length;
+                    const probabilities = {};
+                    Object.keys(toStateCounts).forEach(toState => {
+                        probabilities[toState] = toStateCounts[toState] / total;
+                    });
 
-                    return {
-                        type: 'rdr',
-                        probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
-                        probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
-                        sampleSize: total,
-                        fromStateUsed: fromState,
-                        insufficientData: total === 0
-                    };
+                    if (Object.keys(probabilities).length > 0) {
+                        return {
+                            type: 'to_state',
+                            probabilities: probabilities,
+                            sampleSize: total,
+                            fromStateUsed: fromState,
+                            insufficientData: total === 0
+                        };
+                    }
                 }
 
                 console.log('No valid prediction inputs provided');
@@ -374,7 +377,7 @@
                         : 'pattern ' + prediction.pattern) + 
                       '. Please try different filters.'
                     : prediction.fromStateUsed
-                    ? 'For FROM_STATE = ' + prediction.fromStateUsed + ', the RDR digit in TO_STATE is:'
+                    ? 'For FROM_STATE = ' + prediction.fromStateUsed + ', the TO_STATE is:'
                     : prediction.adrStateUsed
                     ? 'For ADR = ' + prediction.adrStateUsed + ', the ODR digit in TO_STATE is:'
                     : 'When FROM_STATE starts with ' + prediction.pattern + ', the RDR digit in TO_STATE is:'
@@ -417,11 +420,11 @@
                         
                         <div className="prediction-section">
                             <h3>Prediction</h3>
-                            <p>Select ADR to predict ODR, then add ODR to predict RDR</p>
+                            <p>Select ADR to predict ODR, then add ODR to predict RDR, or use FROM_STATE for TO_STATE</p>
                             <div className="prediction-inputs">
                                 <div className="filter-group">
                                     <label>ADR State:</label>
-                                    <select value={adrState} onChange={e => setAdrState(e.target.value)}>
+                                    <select value={adrState} onChange={e => { console.log('ADR changed to:', e.target.value); setAdrState(e.target.value); }}>
                                         <option value="">Select</option>
                                         <option value="0">0</option>
                                         <option value="1">1</option>
@@ -429,7 +432,7 @@
                                 </div>
                                 <div className="filter-group">
                                     <label>ODR State:</label>
-                                    <select value={odrState} onChange={e => setOdrState(e.target.value)} disabled={!adrState}>
+                                    <select value={odrState} onChange={e => { console.log('ODR changed to:', e.target.value); setOdrState(e.target.value); }} disabled={!adrState}>
                                         <option value="">Select</option>
                                         <option value="0">0</option>
                                         <option value="1">1</option>
@@ -446,18 +449,46 @@
                                         <div>
                                             <p>{predictionMessage}</p>
                                             <div className="probability-grid">
-                                                <div className="probability-item">
-                                                    <div className="probability-label">{prediction.type === 'odr' ? 'ODR = 0' : 'RDR = 0'}</div>
-                                                    <div className="probability-value">
-                                                        {(prediction.probability0 * 100).toFixed(1)}%
-                                                    </div>
-                                                </div>
-                                                <div className="probability-item">
-                                                    <div className="probability-label">{prediction.type === 'odr' ? 'ODR = 1' : 'RDR = 1'}</div>
-                                                    <div className="probability-value">
-                                                        {(prediction.probability1 * 100).toFixed(1)}%
-                                                    </div>
-                                                </div>
+                                                {prediction.type === 'odr' ? (
+                                                    <>
+                                                        <div className="probability-item">
+                                                            <div className="probability-label">ODR = 0</div>
+                                                            <div className="probability-value">
+                                                                {(prediction.probability0 * 100).toFixed(1)}%
+                                                            </div>
+                                                        </div>
+                                                        <div className="probability-item">
+                                                            <div className="probability-label">ODR = 1</div>
+                                                            <div className="probability-value">
+                                                                {(prediction.probability1 * 100).toFixed(1)}%
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                ) : prediction.type === 'rdr' ? (
+                                                    <>
+                                                        <div className="probability-item">
+                                                            <div className="probability-label">RDR = 0</div>
+                                                            <div className="probability-value">
+                                                                {(prediction.probability0 * 100).toFixed(1)}%
+                                                            </div>
+                                                        </div>
+                                                        <div className="probability-item">
+                                                            <div className="probability-label">RDR = 1</div>
+                                                            <div className="probability-value">
+                                                                {(prediction.probability1 * 100).toFixed(1)}%
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                ) : prediction.type === 'to_state' ? (
+                                                    Object.entries(prediction.probabilities).map(([toState, prob]) => (
+                                                        <div key={toState} className="probability-item">
+                                                            <div className="probability-label">TO_STATE = {toState}</div>
+                                                            <div className="probability-value">
+                                                                {(prob * 100).toFixed(1)}%
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ) : null}
                                             </div>
                                             <p className="sample-size">Based on {prediction.sampleSize} samples</p>
                                         </div>
