@@ -111,6 +111,15 @@ const calculateProbabilities = () => {
             padding-bottom: 10px;
             margin-bottom: 20px;
         }
+        .state-label {
+            background-color: #f0f8ff;
+            padding: 8px 15px;
+            margin: 15px 0;
+            border-left: 4px solid #0066cc;
+            font-weight: bold;
+            display: block;
+            width: fit-content;
+        }
         .prediction-section {
             margin-top: 30px;
         }
@@ -425,6 +434,7 @@ const calculateProbabilities = () => {
                     
                     <div className="card">
                         <h2>PREVIOUS DAY</h2>
+                        <div className="state-label">FROM STATE</div>
                         <div className="filters">
                             <div className="filter-group">
                                 <label>From State:</label>
@@ -518,6 +528,7 @@ const calculateProbabilities = () => {
 
                     <div className="card">
                         <h2>CURRENT DAY</h2>
+                        <div className="state-label">TO STATE</div>
                         <div className="filters">
                             <div className="filter-group">
                                 <label>To State:</label>
