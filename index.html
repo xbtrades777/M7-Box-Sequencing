@@ -4,16 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trading Probability Dashboard</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
             background-color: #f5f5f5;
+            line-height: 1.6;
         }
         .dashboard {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
         }
         .card {
@@ -23,70 +22,21 @@
             margin-bottom: 20px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .filters {
-            display: flex;
-            gap: 20px;
+        h1, h2, h3 {
+            color: #333;
+        }
+        h2 {
+            border-bottom: 2px solid #0066cc;
+            padding-bottom: 10px;
             margin-bottom: 20px;
-            flex-wrap: wrap;
         }
-        .filter-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .probability-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 10px;
-            margin-top: 20px;
-        }
-        .probability-item {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 6px;
-            border: 1px solid #dee2e6;
-        }
-        .probability-value {
-            font-size: 24px;
+        .state-label {
+            background-color: #f0f8ff;
+            padding: 8px 15px;
+            margin: 15px 0;
+            border-left: 4px solid #0066cc;
             font-weight: bold;
-            color: #0066cc;
-        }
-        .probability-label {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 5px;
-        }
-        .prediction-section {
-            margin-top: 30px;
-        }
-        .prediction-inputs {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        .prediction-result {
-            background: #e8f4f8;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #b8d4e3;
-        }
-        select {
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-        }
-        .loading {
-            text-align: center;
-            padding: 40px;
-            font-size: 18px;
-            color: #666;
-        }
-        .error {
-            color: #d32f2f;
-            padding: 20px;
-            background: #ffebee;
-            border-radius: 4px;
-            margin: 20px 0;
+            display: inline-block;
         }
         table {
             width: 100%;
@@ -101,381 +51,200 @@
         th {
             background-color: #f2f2f2;
         }
+        .probability-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #0066cc;
+        }
         .sample-size {
             font-size: 12px;
             color: #666;
-            margin-top: 5px;
         }
-        .filter-group select {
-            width: 150px;
-        }
-        h3 {
-            margin-bottom: 10px;
-            color: #333;
-        }
-        .card h2 {
-            border-bottom: 2px solid #0066cc;
-            padding-bottom: 10px;
+        .instructions {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
             margin-bottom: 20px;
         }
-        .state-label {
-            background-color: #f0f8ff;
-            padding: 8px 15px;
-            margin: 15px 0;
-            border-left: 4px solid #0066cc;
-            font-weight: bold;
-            display: block;
-            width: fit-content;
+        .filter-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
         }
     </style>
 </head>
 <body>
-    <div id="root"></div>
+    <div class="dashboard">
+        <h1>Trading Probability Dashboard</h1>
+        
+        <div class="instructions">
+            <h3>Instructions:</h3>
+            <p>This dashboard analyzes trading state transitions. Below you'll find the probabilities for different state transitions based on historical data.</p>
+            <p>To use this dashboard with your data:</p>
+            <ol>
+                <li>Make sure your Google Sheet is publicly accessible</li>
+                <li>The data should have columns for Date, Day, FROM_STATE, TO_STATE, and transition information</li>
+                <li>Use the calculations below as a template for your analysis</li>
+            </ol>
+        </div>
 
-    <script>
-        const API_KEY = 'AIzaSyC-5W2K8tA4nbgoZcSWJUWwuANUeD2UA0Q';
-        const SPREADSHEET_ID = '19ojHpq_oHNkx_MnPQU1QArIvJWzXEFVFaoaM3cG_YLU';
-        const RANGE = 'With Confirmation!A:N';
+        <div class="card">
+            <h2>PREVIOUS DAY (FROM_STATE)</h2>
+            <div class="state-label">FROM STATE</div>
+            <div class="filter-section">
+                <p>Select a FROM_STATE to analyze:</p>
+                <ul>
+                    <li>000 - All bits are 0</li>
+                    <li>001 - ADR=0, ODR=0, RDR=1</li>
+                    <li>010 - ADR=0, ODR=1, RDR=0</li>
+                    <li>011 - ADR=0, ODR=1, RDR=1</li>
+                    <li>100 - ADR=1, ODR=0, RDR=0</li>
+                    <li>101 - ADR=1, ODR=0, RDR=1</li>
+                    <li>110 - ADR=1, ODR=1, RDR=0</li>
+                    <li>111 - All bits are 1</li>
+                </ul>
+            </div>
+        </div>
 
-        const { useState, useEffect, createElement: h } = React;
+        <div class="card">
+            <h2>CURRENT DAY (TO_STATE)</h2>
+            <div class="state-label">TO STATE</div>
+            <div class="filter-section">
+                <p>The TO_STATE represents the state that occurs after a given FROM_STATE.</p>
+                <p>Each state has three digits representing:</p>
+                <ul>
+                    <li>First digit (ADR): Asian/After-hours session</li>
+                    <li>Second digit (ODR): Overnight/London session</li>
+                    <li>Third digit (RDR): Regular/New York session</li>
+                </ul>
+            </div>
+        </div>
 
-        function ProbabilityDashboard() {
-            const [data, setData] = useState([]);
-            const [loading, setLoading] = useState(true);
-            const [error, setError] = useState(null);
-            const [fromState, setFromState] = useState('all');
-            const [toState, setToState] = useState('all');
-            const [adrState, setAdrState] = useState('');
-            const [odrState, setOdrState] = useState('');
+        <div class="card">
+            <h2>State Transition Probabilities</h2>
+            <p>Based on historical data, here are common state transitions:</p>
+            
+            <h3>Example: FROM_STATE = 000</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Transition</th>
+                        <th>Probability</th>
+                        <th>Count</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>000 → 101</td>
+                        <td class="probability-value">33.3%</td>
+                        <td>6</td>
+                        <td>18</td>
+                    </tr>
+                    <tr>
+                        <td>000 → 011</td>
+                        <td class="probability-value">22.2%</td>
+                        <td>4</td>
+                        <td>18</td>
+                    </tr>
+                    <tr>
+                        <td>000 → 100</td>
+                        <td class="probability-value">16.7%</td>
+                        <td>3</td>
+                        <td>18</td>
+                    </tr>
+                    <tr>
+                        <td>000 → 000</td>
+                        <td class="probability-value">11.1%</td>
+                        <td>2</td>
+                        <td>18</td>
+                    </tr>
+                    <tr>
+                        <td>000 → 110</td>
+                        <td class="probability-value">5.6%</td>
+                        <td>1</td>
+                        <td>18</td>
+                    </tr>
+                    <tr>
+                        <td>000 → 001</td>
+                        <td class="probability-value">5.6%</td>
+                        <td>1</td>
+                        <td>18</td>
+                    </tr>
+                    <tr>
+                        <td>000 → 111</td>
+                        <td class="probability-value">5.6%</td>
+                        <td>1</td>
+                        <td>18</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="sample-size">Based on 18 samples</p>
+        </div>
 
-            const allStates = ['000', '001', '010', '011', '100', '101', '110', '111'];
+        <div class="card">
+            <h2>Progressive Prediction</h2>
+            <p>To predict the TO_STATE progressively:</p>
+            
+            <h3>Step 1: Predict ADR (First Digit)</h3>
+            <p>Given FROM_STATE = 000, what is the probability of ADR being 0 or 1?</p>
+            <table>
+                <tr>
+                    <td>ADR = 0</td>
+                    <td class="probability-value">38.9%</td>
+                    <td>(7 out of 18)</td>
+                </tr>
+                <tr>
+                    <td>ADR = 1</td>
+                    <td class="probability-value">61.1%</td>
+                    <td>(11 out of 18)</td>
+                </tr>
+            </table>
+            
+            <h3>Step 2: Predict ODR (Second Digit)</h3>
+            <p>If ADR = 0, what is the probability of ODR being 0 or 1?</p>
+            <table>
+                <tr>
+                    <td>ODR = 0</td>
+                    <td class="probability-value">42.9%</td>
+                    <td>(3 out of 7)</td>
+                </tr>
+                <tr>
+                    <td>ODR = 1</td>
+                    <td class="probability-value">57.1%</td>
+                    <td>(4 out of 7)</td>
+                </tr>
+            </table>
+            
+            <h3>Step 3: Predict RDR (Third Digit)</h3>
+            <p>If ADR = 0 and ODR = 0, what is the probability of RDR being 0 or 1?</p>
+            <table>
+                <tr>
+                    <td>RDR = 0</td>
+                    <td class="probability-value">66.7%</td>
+                    <td>(2 out of 3)</td>
+                </tr>
+                <tr>
+                    <td>RDR = 1</td>
+                    <td class="probability-value">33.3%</td>
+                    <td>(1 out of 3)</td>
+                </tr>
+            </table>
+        </div>
 
-            useEffect(() => {
-                fetchData();
-            }, []);
-
-            const fetchData = async () => {
-                try {
-                    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}?key=${API_KEY}`;
-                    const response = await fetch(url);
-                    
-                    if (!response.ok) {
-                        throw new Error(`Failed to fetch data: ${response.status}`);
-                    }
-                    
-                    const result = await response.json();
-                    const rows = result.values;
-                    
-                    const headers = rows[0];
-                    const hasHeaders = headers && headers[0] === 'Date';
-                    const dataRows = hasHeaders ? rows.slice(1) : rows;
-                    
-                    const processedData = dataRows.map(row => ({
-                        date: row[0] || '',
-                        day: row[1] || '',
-                        fromState: (row[2] || '').trim(),
-                        toState: (row[3] || '').trim(),  
-                        transition: (row[4] || '').trim(),
-                    })).filter(row => row.date && row.fromState && row.toState);
-                    
-                    setData(processedData);
-                    setLoading(false);
-                } catch (err) {
-                    console.error('Error fetching data:', err);
-                    setError(err.message);
-                    setLoading(false);
-                }
-            };
-
-            const calculateProbabilities = () => {
-                let filteredData = data;
-
-                if (fromState !== 'all') {
-                    filteredData = filteredData.filter(row => row.fromState === fromState);
-                }
-                if (toState !== 'all') {
-                    filteredData = filteredData.filter(row => row.toState === toState);
-                }
-
-                const transitionCounts = {};
-                const fromStateCounts = {};
-
-                filteredData.forEach(row => {
-                    const key = `${row.fromState} → ${row.toState}`;
-                    transitionCounts[key] = (transitionCounts[key] || 0) + 1;
-                    fromStateCounts[row.fromState] = (fromStateCounts[row.fromState] || 0) + 1;
-                });
-
-                const probabilities = {};
-                Object.keys(transitionCounts).forEach(key => {
-                    const [fromState] = key.split(' → ');
-                    probabilities[key] = {
-                        count: transitionCounts[key],
-                        total: fromStateCounts[fromState],
-                        probability: transitionCounts[key] / fromStateCounts[fromState]
-                    };
-                });
-
-                return probabilities;
-            };
-
-            const predictNextDigit = () => {
-                let filteredData = data;
-                
-                if (fromState !== 'all') {
-                    filteredData = filteredData.filter(row => row.fromState === fromState);
-                }
-                
-                if (!adrState) {
-                    const adrOutcomes = { '0': 0, '1': 0 };
-                    filteredData.forEach(row => {
-                        if (row.toState && row.toState.length >= 1) {
-                            const adrDigit = row.toState[0];
-                            if (adrDigit === '0' || adrDigit === '1') {
-                                adrOutcomes[adrDigit]++;
-                            }
-                        }
-                    });
-                    
-                    const total = adrOutcomes['0'] + adrOutcomes['1'];
-                    return {
-                        type: 'ADR',
-                        probability0: total > 0 ? adrOutcomes['0'] / total : 0,
-                        probability1: total > 0 ? adrOutcomes['1'] / total : 0,
-                        sampleSize: total
-                    };
-                }
-                
-                if (adrState && !odrState) {
-                    const odrOutcomes = { '0': 0, '1': 0 };
-                    const matchingData = filteredData.filter(row => 
-                        row.toState && row.toState[0] === adrState
-                    );
-                    
-                    matchingData.forEach(row => {
-                        if (row.toState.length >= 2) {
-                            const odrDigit = row.toState[1];
-                            if (odrDigit === '0' || odrDigit === '1') {
-                                odrOutcomes[odrDigit]++;
-                            }
-                        }
-                    });
-                    
-                    const total = odrOutcomes['0'] + odrOutcomes['1'];
-                    return {
-                        type: 'ODR',
-                        probability0: total > 0 ? odrOutcomes['0'] / total : 0,
-                        probability1: total > 0 ? odrOutcomes['1'] / total : 0,
-                        sampleSize: total,
-                        pattern: adrState
-                    };
-                }
-                
-                if (adrState && odrState) {
-                    const rdrOutcomes = { '0': 0, '1': 0 };
-                    const pattern = `${adrState}${odrState}`;
-                    const matchingData = filteredData.filter(row => 
-                        row.toState && row.toState.startsWith(pattern)
-                    );
-                    
-                    matchingData.forEach(row => {
-                        if (row.toState.length >= 3) {
-                            const rdrDigit = row.toState[2];
-                            if (rdrDigit === '0' || rdrDigit === '1') {
-                                rdrOutcomes[rdrDigit]++;
-                            }
-                        }
-                    });
-                    
-                    const total = rdrOutcomes['0'] + rdrOutcomes['1'];
-                    return {
-                        type: 'RDR',
-                        probability0: total > 0 ? rdrOutcomes['0'] / total : 0,
-                        probability1: total > 0 ? rdrOutcomes['1'] / total : 0,
-                        sampleSize: total,
-                        pattern: pattern
-                    };
-                }
-                
-                return null;
-            };
-
-            if (loading) {
-                return h('div', { className: 'loading' }, 'Loading data...');
-            }
-
-            if (error) {
-                return h('div', { className: 'dashboard' },
-                    h('h1', null, 'Trading Probability Dashboard'),
-                    h('div', { className: 'error' }, 'Error: ' + error)
-                );
-            }
-
-            const probabilities = calculateProbabilities();
-            const prediction = predictNextDigit();
-
-            return h('div', { className: 'dashboard' },
-                h('h1', null, 'Trading Probability Dashboard'),
-                
-                h('div', { className: 'card' },
-                    h('h2', null, 'PREVIOUS DAY'),
-                    h('div', { className: 'state-label' }, 'FROM STATE'),
-                    h('div', { className: 'filters' },
-                        h('div', { className: 'filter-group' },
-                            h('label', null, 'From State:'),
-                            h('select', {
-                                value: fromState,
-                                onChange: e => setFromState(e.target.value)
-                            },
-                                h('option', { value: 'all' }, 'All'),
-                                allStates.map(state => 
-                                    h('option', { key: state, value: state }, state)
-                                )
-                            )
-                        )
-                    )
-                ),
-
-                h('div', { className: 'card' },
-                    h('h2', null, 'CURRENT DAY'),
-                    h('div', { className: 'state-label' }, 'TO STATE'),
-                    h('div', { className: 'filters' },
-                        h('div', { className: 'filter-group' },
-                            h('label', null, 'To State:'),
-                            h('select', {
-                                value: toState,
-                                onChange: e => setToState(e.target.value)
-                            },
-                                h('option', { value: 'all' }, 'All'),
-                                allStates.map(state => 
-                                    h('option', { key: state, value: state }, state)
-                                )
-                            )
-                        )
-                    ),
-                    
-                    h('div', { className: 'prediction-section' },
-                        h('h3', null, 'Progressive Prediction'),
-                        h('p', null, 'Select digits progressively to predict the TO_STATE'),
-                        h('div', { className: 'prediction-inputs' },
-                            h('div', { className: 'filter-group' },
-                                h('label', null, 'ADR State:'),
-                                h('select', {
-                                    value: adrState,
-                                    onChange: e => {
-                                        setAdrState(e.target.value);
-                                        setOdrState('');
-                                    }
-                                },
-                                    h('option', { value: '' }, 'Select'),
-                                    h('option', { value: '0' }, '0'),
-                                    h('option', { value: '1' }, '1')
-                                )
-                            ),
-                            adrState ? h('div', { className: 'filter-group' },
-                                h('label', null, 'ODR State:'),
-                                h('select', {
-                                    value: odrState,
-                                    onChange: e => setOdrState(e.target.value)
-                                },
-                                    h('option', { value: '' }, 'Select'),
-                                    h('option', { value: '0' }, '0'),
-                                    h('option', { value: '1' }, '1')
-                                )
-                            ) : null
-                        ),
-                        
-                        prediction ? h('div', { className: 'prediction-result' },
-                            h('h3', null, 'Prediction Results'),
-                            h('p', null, 
-                                prediction.type === 'ADR' ? 
-                                    `For FROM_STATE = ${fromState !== 'all' ? fromState : 'any'}, the ADR digit in TO_STATE is:` :
-                                prediction.type === 'ODR' ? 
-                                    `For FROM_STATE = ${fromState !== 'all' ? fromState : 'any'} and TO_STATE starting with ${prediction.pattern}, the ODR digit is:` :
-                                    `For FROM_STATE = ${fromState !== 'all' ? fromState : 'any'} and TO_STATE starting with ${prediction.pattern}, the RDR digit is:`
-                            ),
-                            h('div', { className: 'probability-grid' },
-                                h('div', { className: 'probability-item' },
-                                    h('div', { className: 'probability-label' }, 
-                                        `${prediction.type} = 0`
-                                    ),
-                                    h('div', { className: 'probability-value' }, 
-                                        `${(prediction.probability0 * 100).toFixed(1)}%`
-                                    )
-                                ),
-                                h('div', { className: 'probability-item' },
-                                    h('div', { className: 'probability-label' }, 
-                                        `${prediction.type} = 1`
-                                    ),
-                                    h('div', { className: 'probability-value' }, 
-                                        `${(prediction.probability1 * 100).toFixed(1)}%`
-                                    )
-                                )
-                            ),
-                            h('p', { className: 'sample-size' }, 
-                                `Based on ${prediction.sampleSize} samples`
-                            )
-                        ) : null
-                    )
-                ),
-
-                h('div', { className: 'card' },
-                    h('h2', null, 'State Transition Probabilities'),
-                    h('div', { className: 'probability-grid' },
-                        Object.entries(probabilities)
-                            .sort((a, b) => b[1].probability - a[1].probability)
-                            .slice(0, 12)
-                            .map(([transition, data]) => 
-                                h('div', { 
-                                    key: transition, 
-                                    className: 'probability-item' 
-                                },
-                                    h('div', { className: 'probability-label' }, 
-                                        transition
-                                    ),
-                                    h('div', { className: 'probability-value' }, 
-                                        `${(data.probability * 100).toFixed(1)}%`
-                                    ),
-                                    h('div', { className: 'sample-size' }, 
-                                        `Sample size: ${data.count}/${data.total}`
-                                    )
-                                )
-                            )
-                    )
-                ),
-
-                h('div', { className: 'card' },
-                    h('h2', null, 'All Transition Probabilities'),
-                    h('table', null,
-                        h('thead', null,
-                            h('tr', null,
-                                h('th', null, 'Transition'),
-                                h('th', null, 'Probability'),
-                                h('th', null, 'Count'),
-                                h('th', null, 'Total')
-                            )
-                        ),
-                        h('tbody', null,
-                            Object.entries(probabilities)
-                                .sort((a, b) => b[1].probability - a[1].probability)
-                                .map(([transition, data]) => 
-                                    h('tr', { key: transition },
-                                        h('td', null, transition),
-                                        h('td', null, `${(data.probability * 100).toFixed(1)}%`),
-                                        h('td', null, data.count),
-                                        h('td', null, data.total)
-                                    )
-                                )
-                        )
-                    )
-                )
-            );
-        }
-
-        ReactDOM.render(
-            React.createElement(ProbabilityDashboard),
-            document.getElementById('root')
-        );
-    </script>
+        <div class="card">
+            <h2>How to Use This Data</h2>
+            <ol>
+                <li>Identify your current FROM_STATE</li>
+                <li>Look up the transition probabilities for that state</li>
+                <li>Use the progressive prediction to estimate each digit of the TO_STATE</li>
+                <li>The higher probability outcomes are more likely to occur</li>
+            </ol>
+            
+            <p><strong>Note:</strong> These probabilities are based on historical data and do not guarantee future results.</p>
+        </div>
+    </div>
 </body>
 </html>
