@@ -568,7 +568,9 @@ const calculateProbabilities = () => {
                 );
             };
 
-            const HeatmapComponent = ({ probabilities }) => {
+            // Heatmap Component
+            const HeatmapComponent = (props) => {
+                const { probabilities } = props;
                 console.log('Heatmap probabilities:', probabilities);
                 
                 // Create a matrix of probabilities
@@ -584,12 +586,14 @@ const calculateProbabilities = () => {
                 });
                 
                 // Fill matrix with actual probabilities
-                Object.entries(probabilities).forEach(([key, data]) => {
-                    const [fromState, toState] = key.split(' → ');
-                    if (matrix[fromState] && matrix[fromState][toState] !== undefined) {
-                        matrix[fromState][toState] = data.probability;
-                    }
-                });
+                if (probabilities) {
+                    Object.entries(probabilities).forEach(([key, data]) => {
+                        const [fromState, toState] = key.split(' → ');
+                        if (matrix[fromState] && matrix[fromState][toState] !== undefined) {
+                            matrix[fromState][toState] = data.probability;
+                        }
+                    });
+                }
                 
                 // Function to get color based on probability
                 const getColor = (probability) => {
@@ -614,54 +618,46 @@ const calculateProbabilities = () => {
                     return probability > 0.5 ? '#ffffff' : '#333333';
                 };
                 
-                return (
-                    <div className="heatmap-container">
-                        <div className="heatmap-title">Transition Probability Heatmap</div>
-                        <div className="heatmap-grid">
-                            {/* Empty corner cell */}
-                            <div className="heatmap-cell heatmap-header"></div>
-                            
-                            {/* Column headers */}
-                            {states.map(state => (
-                                <div key={`header-${state}`} className="heatmap-cell heatmap-header">
-                                    {state}
-                                </div>
-                            ))}
-                            
-                            {/* Rows */}
-                            {states.map(fromState => (
-                                <React.Fragment key={`row-${fromState}`}>
-                                    <div className="heatmap-cell heatmap-label">{fromState}</div>
-                                    {states.map(toState => {
-                                        const probability = matrix[fromState][toState];
-                                        return (
-                                            <div
-                                                key={`cell-${fromState}-${toState}`}
-                                                className="heatmap-cell"
-                                                style={{
-                                                    backgroundColor: getColor(probability),
-                                                    color: getTextColor(probability)
-                                                }}
-                                                title={`${fromState} → ${toState}: ${(probability * 100).toFixed(1)}%`}
-                                            >
-                                                {probability > 0 ? (probability * 100).toFixed(0) : ''}
-                                            </div>
-                                        );
-                                    })}
-                                </React.Fragment>
-                            ))}
-                        </div>
-                        
-                        <div className="heatmap-legend">
-                            <span style={{ fontSize: '12px', color: '#666' }}>Transition Probability</span>
-                            <div className="legend-gradient"></div>
-                            <div className="legend-labels">
-                                <span>0.0</span>
-                                <span>0.5</span>
-                                <span>1.0</span>
-                            </div>
-                        </div>
-                    </div>
+                return React.createElement('div', { className: 'heatmap-container' },
+                    React.createElement('div', { className: 'heatmap-title' }, 'Transition Probability Heatmap'),
+                    React.createElement('div', { className: 'heatmap-grid' },
+                        React.createElement('div', { className: 'heatmap-cell heatmap-header' }),
+                        states.map(state => 
+                            React.createElement('div', { 
+                                key: `header-${state}`, 
+                                className: 'heatmap-cell heatmap-header' 
+                            }, state)
+                        ),
+                        states.map(fromState => [
+                            React.createElement('div', { 
+                                key: `label-${fromState}`,
+                                className: 'heatmap-cell heatmap-label' 
+                            }, fromState),
+                            ...states.map(toState => {
+                                const probability = matrix[fromState][toState];
+                                return React.createElement('div', {
+                                    key: `cell-${fromState}-${toState}`,
+                                    className: 'heatmap-cell',
+                                    style: {
+                                        backgroundColor: getColor(probability),
+                                        color: getTextColor(probability)
+                                    },
+                                    title: `${fromState} → ${toState}: ${(probability * 100).toFixed(1)}%`
+                                }, probability > 0 ? (probability * 100).toFixed(0) : '');
+                            })
+                        ]).flat()
+                    ),
+                    React.createElement('div', { className: 'heatmap-legend' },
+                        React.createElement('span', { 
+                            style: { fontSize: '12px', color: '#666' } 
+                        }, 'Transition Probability'),
+                        React.createElement('div', { className: 'legend-gradient' }),
+                        React.createElement('div', { className: 'legend-labels' },
+                            React.createElement('span', null, '0.0'),
+                            React.createElement('span', null, '0.5'),
+                            React.createElement('span', null, '1.0')
+                        )
+                    )
                 );
             };
 
@@ -986,10 +982,6 @@ const calculateProbabilities = () => {
                                     ))}
                             </tbody>
                         </table>
-                    </div>
-
-                    <div className="card">
-                        <HeatmapComponent probabilities={probabilities} />
                     </div>
                 </div>
             );
