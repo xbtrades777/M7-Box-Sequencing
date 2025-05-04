@@ -172,15 +172,9 @@
                     const processedData = dataRows.map(row => ({
                         date: row[0] || '',
                         day: row[1] || '',
-                        fromState: row[2] || '',
-                        toState: row[3] || '',
-                        transition: row[4] || '',
-                        adrColor: row[5] || '',
-                        odrColor: row[6] || '',
-                        rdrColor: row[7] || '',
-                        adrSize: parseFloat(row[8]) || 0,
-                        odrSize: parseFloat(row[9]) || 0,
-                        rdrSize: parseFloat(row[10]) || 0,
+                        fromState: row[2] || '',        // Column C
+                        toState: row[3] || '',          // Column D  
+                        transition: row[4] || '',       // Column E (FROM_STATE -> TO_STATE)
                     })).filter(row => row.date && row.fromState && row.toState);
                     
                     setData(processedData);
@@ -227,20 +221,25 @@
             const predictRDR = () => {
                 if (!adrState || !odrState) return null;
 
+                // Find all transitions that start with the selected ADR and ODR pattern
                 const pattern = `${adrState}${odrState}`;
                 let matchingData = [];
                 
+                // Look for FROM_STATE patterns that match ADR+ODR
                 data.forEach(row => {
-                    if (row.toState && row.toState.substring(0, 2) === pattern) {
+                    if (row.fromState && row.fromState.substring(0, 2) === pattern) {
                         matchingData.push(row);
                     }
                 });
 
+                // Count what RDR values (3rd digit of TO_STATE) occurred
                 const rdrOutcomes = { '0': 0, '1': 0 };
                 matchingData.forEach(row => {
-                    const rdrDigit = row.toState[2];
-                    if (rdrDigit) {
-                        rdrOutcomes[rdrDigit]++;
+                    if (row.toState && row.toState.length >= 3) {
+                        const rdrDigit = row.toState[2];  // 3rd digit of TO_STATE
+                        if (rdrDigit === '0' || rdrDigit === '1') {
+                            rdrOutcomes[rdrDigit]++;
+                        }
                     }
                 });
 
@@ -327,7 +326,7 @@
                             {rdrPrediction && (
                                 <div className="prediction-result">
                                     <h3>Prediction Results</h3>
-                                    <p>Pattern: {adrState}{odrState}? → Most likely RDR state</p>
+                                    <p>When FROM_STATE starts with {adrState}{odrState}, the RDR outcomes are:</p>
                                     <div className="probability-grid">
                                         <div className="probability-item">
                                             <div className="probability-label">RDR = 0</div>
