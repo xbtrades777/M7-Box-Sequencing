@@ -172,12 +172,11 @@
                     const processedData = dataRows.map(row => ({
                         date: row[0] || '',
                         day: row[1] || '',
-                        fromState: (row[2] || '').trim(),        // Column C - trim whitespace
-                        toState: (row[3] || '').trim(),          // Column D - trim whitespace  
-                        transition: (row[4] || '').trim(),       // Column E - trim whitespace
+                        fromState: (row[2] || '').trim(),
+                        toState: (row[3] || '').trim(),  
+                        transition: (row[4] || '').trim(),
                     })).filter(row => row.date && row.fromState && row.toState);
                     
-                    // Debug log to see what values we're getting
                     console.log('Sample of processed data:', processedData.slice(0, 10));
                     
                     setData(processedData);
@@ -192,21 +191,12 @@
             const calculateProbabilities = () => {
                 let filteredData = data;
 
-                // First, let's check all FROM_STATE values in the data
-                console.log('All FROM_STATE values:', data.map(row => row.fromState));
-                
                 if (fromState !== 'all') {
-                    console.log(`Looking for fromState: "${fromState}"`);
                     filteredData = filteredData.filter(row => row.fromState === fromState);
-                    console.log(`Filtered by fromState ${fromState}:`, filteredData.length);
-                    console.log('Filtered rows:', filteredData);
                 }
                 if (toState !== 'all') {
                     filteredData = filteredData.filter(row => row.toState === toState);
-                    console.log(`Filtered by toState ${toState}:`, filteredData.length);
                 }
-
-                console.log('Total filtered data:', filteredData.length);
 
                 const transitionCounts = {};
                 const fromStateCounts = {};
@@ -231,14 +221,12 @@
             };
 
             const predictNextDigit = () => {
-                // Start with all data filtered by FROM_STATE
                 let filteredData = data;
                 
                 if (fromState !== 'all') {
                     filteredData = filteredData.filter(row => row.fromState === fromState);
                 }
                 
-                // If no ADR selected, predict ADR probabilities
                 if (!adrState) {
                     const adrOutcomes = { '0': 0, '1': 0 };
                     filteredData.forEach(row => {
@@ -259,7 +247,6 @@
                     };
                 }
                 
-                // If ADR selected but no ODR, predict ODR probabilities
                 if (adrState && !odrState) {
                     const odrOutcomes = { '0': 0, '1': 0 };
                     const matchingData = filteredData.filter(row => 
@@ -285,7 +272,6 @@
                     };
                 }
                 
-                // If both ADR and ODR selected, predict RDR probabilities
                 if (adrState && odrState) {
                     const rdrOutcomes = { '0': 0, '1': 0 };
                     const pattern = `${adrState}${odrState}`;
@@ -316,76 +302,176 @@
             };
 
             if (loading) {
-                return <div className="loading">Loading data...</div>;
+                return React.createElement('div', { className: 'loading' }, 'Loading data...');
             }
 
             if (error) {
-                return <div className="dashboard">
-                    <h1>Trading Probability Dashboard</h1>
-                    <div className="error">Error: {error}</div>
-                </div>;
+                return React.createElement('div', { className: 'dashboard' },
+                    React.createElement('h1', null, 'Trading Probability Dashboard'),
+                    React.createElement('div', { className: 'error' }, 'Error: ' + error)
+                );
             }
 
             const probabilities = calculateProbabilities();
             const prediction = predictNextDigit();
 
-            return (
-                <div className="dashboard">
-                    <h1>Trading Probability Dashboard</h1>
-                    
-                    <div className="card">
-                        <h2>PREVIOUS DAY</h2>
-                        <div className="state-label">FROM STATE</div>
-                        <div className="filters">
-                            <div className="filter-group">
-                                <label>From State:</label>
-                                <select value={fromState} onChange={e => setFromState(e.target.value)}>
-                                    <option value="all">All</option>
-                                    {allStates.map(state => (
-                                        <option key={state} value={state}>{state}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                    </div>
+            return React.createElement('div', { className: 'dashboard' },
+                React.createElement('h1', null, 'Trading Probability Dashboard'),
+                
+                React.createElement('div', { className: 'card' },
+                    React.createElement('h2', null, 'PREVIOUS DAY'),
+                    React.createElement('div', { className: 'state-label' }, 'FROM STATE'),
+                    React.createElement('div', { className: 'filters' },
+                        React.createElement('div', { className: 'filter-group' },
+                            React.createElement('label', null, 'From State:'),
+                            React.createElement('select', {
+                                value: fromState,
+                                onChange: e => setFromState(e.target.value)
+                            },
+                                React.createElement('option', { value: 'all' }, 'All'),
+                                allStates.map(state => 
+                                    React.createElement('option', { key: state, value: state }, state)
+                                )
+                            )
+                        )
+                    )
+                ),
 
-                    <div className="card">
-                        <h2>CURRENT DAY</h2>
-                        <div className="state-label">TO STATE</div>
-                        <div className="filters">
-                            <div className="filter-group">
-                                <label>To State:</label>
-                                <select value={toState} onChange={e => setToState(e.target.value)}>
-                                    <option value="all">All</option>
-                                    {allStates.map(state => (
-                                        <option key={state} value={state}>{state}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div className="prediction-section">
-                            <h3>Progressive Prediction</h3>
-                            <p>Select digits progressively to predict the TO_STATE</p>
-                            <div className="prediction-inputs">
-                                <div className="filter-group">
-                                    <label>ADR State:</label>
-                                    <select value={adrState} onChange={e => {
+                React.createElement('div', { className: 'card' },
+                    React.createElement('h2', null, 'CURRENT DAY'),
+                    React.createElement('div', { className: 'state-label' }, 'TO STATE'),
+                    React.createElement('div', { className: 'filters' },
+                        React.createElement('div', { className: 'filter-group' },
+                            React.createElement('label', null, 'To State:'),
+                            React.createElement('select', {
+                                value: toState,
+                                onChange: e => setToState(e.target.value)
+                            },
+                                React.createElement('option', { value: 'all' }, 'All'),
+                                allStates.map(state => 
+                                    React.createElement('option', { key: state, value: state }, state)
+                                )
+                            )
+                        )
+                    ),
+                    
+                    React.createElement('div', { className: 'prediction-section' },
+                        React.createElement('h3', null, 'Progressive Prediction'),
+                        React.createElement('p', null, 'Select digits progressively to predict the TO_STATE'),
+                        React.createElement('div', { className: 'prediction-inputs' },
+                            React.createElement('div', { className: 'filter-group' },
+                                React.createElement('label', null, 'ADR State:'),
+                                React.createElement('select', {
+                                    value: adrState,
+                                    onChange: e => {
                                         setAdrState(e.target.value);
-                                        setOdrState(''); // Reset ODR when ADR changes
-                                    }}>
-                                        <option value="">Select</option>
-                                        <option value="0">0</option>
-                                        <option value="1">1</option>
-                                    </select>
-                                </div>
-                                {adrState && (
-                                    <div className="filter-group">
-                                        <label>ODR State:</label>
-                                        <select value={odrState} onChange={e => setOdrState(e.target.value)}>
-                                            <option value="">Select</option>
-                                            <option value="0">0</option>
-                                            <option value="1">1</option>
+                                        setOdrState('');
+                                    }
+                                },
+                                    React.createElement('option', { value: '' }, 'Select'),
+                                    React.createElement('option', { value: '0' }, '0'),
+                                    React.createElement('option', { value: '1' }, '1')
+                                )
+                            ),
+                            adrState ? React.createElement('div', { className: 'filter-group' },
+                                React.createElement('label', null, 'ODR State:'),
+                                React.createElement('select', {
+                                    value: odrState,
+                                    onChange: e => setOdrState(e.target.value)
+                                },
+                                    React.createElement('option', { value: '' }, 'Select'),
+                                    React.createElement('option', { value: '0' }, '0'),
+                                    React.createElement('option', { value: '1' }, '1')
+                                )
+                            ) : null
+                        ),
+                        
+                        prediction ? React.createElement('div', { className: 'prediction-result' },
+                            React.createElement('h3', null, 'Prediction Results'),
+                            React.createElement('p', null, 
+                                prediction.type === 'ADR' ? 
+                                    `For FROM_STATE = ${fromState !== 'all' ? fromState : 'any'}, the ADR digit in TO_STATE is:` :
+                                prediction.type === 'ODR' ? 
+                                    `For FROM_STATE = ${fromState !== 'all' ? fromState : 'any'} and TO_STATE starting with ${prediction.pattern}, the ODR digit is:` :
+                                    `For FROM_STATE = ${fromState !== 'all' ? fromState : 'any'} and TO_STATE starting with ${prediction.pattern}, the RDR digit is:`
+                            ),
+                            React.createElement('div', { className: 'probability-grid' },
+                                React.createElement('div', { className: 'probability-item' },
+                                    React.createElement('div', { className: 'probability-label' }, 
+                                        `${prediction.type} = 0`
+                                    ),
+                                    React.createElement('div', { className: 'probability-value' }, 
+                                        `${(prediction.probability0 * 100).toFixed(1)}%`
+                                    )
+                                ),
+                                React.createElement('div', { className: 'probability-item' },
+                                    React.createElement('div', { className: 'probability-label' }, 
+                                        `${prediction.type} = 1`
+                                    ),
+                                    React.createElement('div', { className: 'probability-value' }, 
+                                        `${(prediction.probability1 * 100).toFixed(1)}%`
+                                    )
+                                )
+                            ),
+                            React.createElement('p', { className: 'sample-size' }, 
+                                `Based on ${prediction.sampleSize} samples`
+                            )
+                        ) : null
+                    )
+                ),
+
+                React.createElement('div', { className: 'card' },
+                    React.createElement('h2', null, 'State Transition Probabilities'),
+                    React.createElement('div', { className: 'probability-grid' },
+                        Object.entries(probabilities)
+                            .sort((a, b) => b[1].probability - a[1].probability)
+                            .slice(0, 12)
+                            .map(([transition, data]) => 
+                                React.createElement('div', { 
+                                    key: transition, 
+                                    className: 'probability-item' 
+                                },
+                                    React.createElement('div', { className: 'probability-label' }, 
+                                        transition
+                                    ),
+                                    React.createElement('div', { className: 'probability-value' }, 
+                                        `${(data.probability * 100).toFixed(1)}%`
+                                    ),
+                                    React.createElement('div', { className: 'sample-size' }, 
+                                        `Sample size: ${data.count}/${data.total}`
+                                    )
+                                )
+                            )
+                    )
+                ),
+
+                React.createElement('div', { className: 'card' },
+                    React.createElement('h2', null, 'All Transition Probabilities'),
+                    React.createElement('table', null,
+                        React.createElement('thead', null,
+                            React.createElement('tr', null,
+                                React.createElement('th', null, 'Transition'),
+                                React.createElement('th', null, 'Probability'),
+                                React.createElement('th', null, 'Count'),
+                                React.createElement('th', null, 'Total')
+                            )
+                        ),
+                        React.createElement('tbody', null,
+                            Object.entries(probabilities)
+                                .sort((a, b) => b[1].probability - a[1].probability)
+                                .map(([transition, data]) => 
+                                    React.createElement('tr', { key: transition },
+                                        React.createElement('td', null, transition),
+                                        React.createElement('td', null, `${(data.probability * 100).toFixed(1)}%`),
+                                        React.createElement('td', null, data.count),
+                                        React.createElement('td', null, data.total)
+                                    )
+                                )
+                        )
+                    )
+                )
+            );
+        }>
                                         </select>
                                     </div>
                                 )}
@@ -469,57 +555,57 @@
                         </table>
                     </div>
 
-                    <div className="card">
-                        <h2>Debug: All FROM_STATE = 000 entries</h2>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>FROM_STATE</th>
-                                    <th>TO_STATE</th>
-                                    <th>Transition</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data
-                                    .filter(row => row.fromState === '000')
-                                    .map((row, index) => (
-                                        <tr key={index}>
-                                            <td>{row.date}</td>
-                                            <td>{row.fromState}</td>
-                                            <td>{row.toState}</td>
-                                            <td>{row.transition}</td>
-                                        </tr>
-                                    ))}
-                            </tbody>
-                        </table>
-                    </div>
+                React.createElement('div', { className: 'card' },
+                    React.createElement('h2', null, 'Debug: All FROM_STATE = 000 entries'),
+                    React.createElement('table', null,
+                        React.createElement('thead', null,
+                            React.createElement('tr', null,
+                                React.createElement('th', null, 'Date'),
+                                React.createElement('th', null, 'FROM_STATE'),
+                                React.createElement('th', null, 'TO_STATE'),
+                                React.createElement('th', null, 'Transition')
+                            )
+                        ),
+                        React.createElement('tbody', null,
+                            data
+                                .filter(row => row.fromState === '000')
+                                .map((row, index) => 
+                                    React.createElement('tr', { key: index },
+                                        React.createElement('td', null, row.date),
+                                        React.createElement('td', null, row.fromState),
+                                        React.createElement('td', null, row.toState),
+                                        React.createElement('td', null, row.transition)
+                                    )
+                                )
+                        )
+                    )
+                ),
 
-                    <div className="card">
-                        <h2>Debug: All entries containing "000" in FROM_STATE</h2>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>FROM_STATE</th>
-                                    <th>TO_STATE</th>
-                                    <th>Transition</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data
-                                    .filter(row => row.fromState && row.fromState.includes('000'))
-                                    .map((row, index) => (
-                                        <tr key={index}>
-                                            <td>{row.date}</td>
-                                            <td>"{row.fromState}"</td>
-                                            <td>{row.toState}</td>
-                                            <td>{row.transition}</td>
-                                        </tr>
-                                    ))}
-                            </tbody>
-                        </table>
-                    </div>
+                React.createElement('div', { className: 'card' },
+                    React.createElement('h2', null, 'Debug: All entries containing "000" in FROM_STATE'),
+                    React.createElement('table', null,
+                        React.createElement('thead', null,
+                            React.createElement('tr', null,
+                                React.createElement('th', null, 'Date'),
+                                React.createElement('th', null, 'FROM_STATE'),
+                                React.createElement('th', null, 'TO_STATE'),
+                                React.createElement('th', null, 'Transition')
+                            )
+                        ),
+                        React.createElement('tbody', null,
+                            data
+                                .filter(row => row.fromState && row.fromState.includes('000'))
+                                .map((row, index) => 
+                                    React.createElement('tr', { key: index },
+                                        React.createElement('td', null, row.date),
+                                        React.createElement('td', null, `"${row.fromState}"`),
+                                        React.createElement('td', null, row.toState),
+                                        React.createElement('td', null, row.transition)
+                                    )
+                                )
+                        )
+                    )
+                )
                 </div>
             );
         }
