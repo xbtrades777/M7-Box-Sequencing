@@ -375,53 +375,86 @@ const calculateProbabilities = () => {
             };
 
             const calculateProbabilities = () => {
-                let filteredData = data;
+                let filteredData = [];
 
-                // Apply Previous Day filters
-                if (filters.fromState !== 'all') {
-                    filteredData = filteredData.filter(row => row.fromState === filters.fromState);
-                }
-                
-                // Note: Previous day filters would need to look at the previous row's data
-                // For now, we'll focus on the from/to state transitions
-
-                // Apply Current Day filters
-                if (filters.toState !== 'all') {
-                    filteredData = filteredData.filter(row => row.toState === filters.toState);
-                }
-                if (filters.currAdrColor !== 'all') {
-                    filteredData = filteredData.filter(row => row.adrColor === filters.currAdrColor);
-                }
-                if (filters.currOdrColor !== 'all') {
-                    filteredData = filteredData.filter(row => row.odrColor === filters.currOdrColor);
-                }
-                if (filters.currRdrColor !== 'all') {
-                    filteredData = filteredData.filter(row => row.rdrColor === filters.currRdrColor);
-                }
-                
-                // Apply Current Day size range filters
-                const applySizeFilter = (data, sizeValue, session) => {
-                    if (sizeValue === 'all') return data;
+                // We need to filter based on previous day attributes
+                for (let i = 1; i < data.length; i++) {
+                    const currentRow = data[i];
+                    const previousRow = data[i - 1];
                     
-                    const [min, max] = sizeValue.split(',').map(parseFloat);
-                    return data.filter(row => {
-                        const size = row[`${session}Size`];
-                        return size >= min && size < max;
-                    });
-                };
-                
-                filteredData = applySizeFilter(filteredData, filters.currAdrSizeRange, 'adr');
-                filteredData = applySizeFilter(filteredData, filters.currOdrSizeRange, 'odr');
-                filteredData = applySizeFilter(filteredData, filters.currRdrSizeRange, 'rdr');
+                    let includeRow = true;
+
+                    // Apply Previous Day filters (using the previous row's data)
+                    if (filters.fromState !== 'all' && previousRow.toState !== filters.fromState) {
+                        includeRow = false;
+                    }
+                    if (filters.prevAdrColor !== 'all' && previousRow.adrColor !== filters.prevAdrColor) {
+                        includeRow = false;
+                    }
+                    if (filters.prevOdrColor !== 'all' && previousRow.odrColor !== filters.prevOdrColor) {
+                        includeRow = false;
+                    }
+                    if (filters.prevRdrColor !== 'all' && previousRow.rdrColor !== filters.prevRdrColor) {
+                        includeRow = false;
+                    }
+                    
+                    // Apply Previous Day size range filters  
+                    const applySizeFilter = (value, rangeStr) => {
+                        if (rangeStr === 'all') return true;
+                        const [min, max] = rangeStr.split(',').map(parseFloat);
+                        return value >= min && value < max;
+                    };
+                    
+                    if (!applySizeFilter(previousRow.adrSize, filters.prevAdrSizeRange)) {
+                        includeRow = false;
+                    }
+                    if (!applySizeFilter(previousRow.odrSize, filters.prevOdrSizeRange)) {
+                        includeRow = false;
+                    }
+                    if (!applySizeFilter(previousRow.rdrSize, filters.prevRdrSizeRange)) {
+                        includeRow = false;
+                    }
+
+                    // Apply Current Day filters (using the current row's data)
+                    if (filters.toState !== 'all' && currentRow.toState !== filters.toState) {
+                        includeRow = false;
+                    }
+                    if (filters.currAdrColor !== 'all' && currentRow.adrColor !== filters.currAdrColor) {
+                        includeRow = false;
+                    }
+                    if (filters.currOdrColor !== 'all' && currentRow.odrColor !== filters.currOdrColor) {
+                        includeRow = false;
+                    }
+                    if (filters.currRdrColor !== 'all' && currentRow.rdrColor !== filters.currRdrColor) {
+                        includeRow = false;
+                    }
+                    
+                    if (!applySizeFilter(currentRow.adrSize, filters.currAdrSizeRange)) {
+                        includeRow = false;
+                    }
+                    if (!applySizeFilter(currentRow.odrSize, filters.currOdrSizeRange)) {
+                        includeRow = false;
+                    }
+                    if (!applySizeFilter(currentRow.rdrSize, filters.currRdrSizeRange)) {
+                        includeRow = false;
+                    }
+
+                    if (includeRow) {
+                        filteredData.push({
+                            ...currentRow,
+                            actualFromState: previousRow.toState  // The actual previous day's state
+                        });
+                    }
+                }
 
                 // Calculate transition probabilities
                 const transitionCounts = {};
                 const fromStateCounts = {};
 
                 filteredData.forEach(row => {
-                    const key = `${row.fromState} → ${row.toState}`;
+                    const key = `${row.actualFromState} → ${row.toState}`;
                     transitionCounts[key] = (transitionCounts[key] || 0) + 1;
-                    fromStateCounts[row.fromState] = (fromStateCounts[row.fromState] || 0) + 1;
+                    fromStateCounts[row.actualFromState] = (fromStateCounts[row.actualFromState] || 0) + 1;
                 });
 
                 const probabilities = {};
@@ -434,6 +467,9 @@ const calculateProbabilities = () => {
                     };
                 });
 
+                console.log('Filtered data count:', filteredData.length);
+                console.log('Transition counts:', transitionCounts);
+                
                 return probabilities;
             };
 
@@ -532,8 +568,9 @@ const calculateProbabilities = () => {
                 );
             };
 
-            // Heatmap Component
             const HeatmapComponent = ({ probabilities }) => {
+                console.log('Heatmap probabilities:', probabilities);
+                
                 // Create a matrix of probabilities
                 const states = ['000', '001', '010', '011', '100', '101', '110', '111'];
                 const matrix = {};
